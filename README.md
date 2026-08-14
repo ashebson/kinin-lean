@@ -39,9 +39,15 @@ to `UncertaintyProblem.HasOptimalGuarantee`.  Consequently their theorems now
 contain both parts of a maximin proof: an attaining strategy and an admissible
 counter-world against every legal strategy.  In particular,
 `generalized_smallest_majority_no_better` rules out every larger guarantee.
-The majority payoff is also realized by explicit per-block services: every
-pair is classified as below/below, split, or above/above, exactly half of the
-birds are performed above, and the valid count is proved to equal the payoff.
+The chapter 3:2 strategy is the concrete, world-independent list
+`canonicalHalfSplitActions`: half of the numbered unidentified birds are
+offered as burnts above and half as sins below. Lean proves its length, split,
+and local validity before quantifying over hidden ownership worlds. Each world
+then allocates those above positions among the owner blocks, and validity is
+computed owner by owner from individual below/below, split, and above/above
+pairs. The operational payoff contains no majority formula. The formula is a
+theorem: every allocation achieves the smallest-majority bound, while an
+executable allocation constructed from the largest subset sum attains it.
 
 Chapter 2 now separates observed consequences from their remedial rule and
 derives the 1-through-7 recurrence from endpoint/interior path exposures.  In
@@ -49,11 +55,12 @@ derives the 1-through-7 recurrence from endpoint/interior path exposures.  In
 liabilities, and `coverShortfalls_minimal` proves that their componentwise
 maximum is both sufficient and least.
 
-The remaining textual-to-model boundary is explicit: assigning a Mishnah case
-to a flight observation, whole-owner cut, or list of atomic replacement
-liabilities is an interpretive premise.  Lean checks every consequence after
-that assignment; it does not independently establish that the assignment is
-the uniquely correct reading of the Hebrew source.
+The remaining textual-to-model boundary is explicit: the chapter 3:2 model
+assumes that an unidentified ownership permutation is completely represented
+by its per-owner above counts; other chapters assign textual cases to flight
+observations or lists of atomic replacement liabilities. Lean checks every
+consequence after those assignments; it does not independently establish that
+they are the uniquely correct readings of the Hebrew source.
 
 Build with Lean 4.32.1:
 

@@ -51,17 +51,18 @@ The theorem names use the Koppel column.
    `roundTripLoss` derives losses from those exposures. The reported
    alternative opinion protects the last endpoint on the third traversal and
    is represented separately by `roundTripLossProtectedLast`.
-5. Chapter 3:2 follows Koppel/Reiss: invalid birds equal twice the largest
-   subset of whole owner-blocks whose pair count is at most half the total;
-   valid birds are twice the complementary smallest majority. `subsetSums`
-   computes the examples.  `majority_has_optimal_guarantee` proves that this
-   is the exact maximin value: every admissible whole-owner cut attains at
-   least the formula, while the largest-minority cut witnesses the matching
-   upper bound. The complementary-majority payoff is realized by explicit
-   `BlockService` values that count below/below, split, and above/above pairs;
-   the proof establishes the pair total, the half-above constraint, and the
-   resulting valid-bird count. Treating the hidden possibilities as cuts
-   between whole owner blocks remains the interpretive premise.
+5. Chapter 3:2 follows Koppel/Reiss. The priest uses the fixed action list
+   `canonicalHalfSplitActions`, chosen before the hidden world: exactly half
+   the birds are burnts above and half sins below. A `HiddenOwnershipWorld`
+   assigns the above positions among each owner's block, bounded by that
+   block's bird count and summing to half the total. `ownershipMajorityPayoff`
+   counts valid birds owner by owner and contains no subset-sum answer.
+   Deficit/excess balance proves every such allocation attains at least twice
+   the complementary smallest majority. `allocationFromSelection` constructs
+   a matching worst world from the largest whole-owner subset at most half,
+   proving exact maximin optimality. The remaining interpretive premise is
+   that per-owner above counts completely capture the relevant uncertainty of
+   the unidentified physical birds; action order is treated as symmetric.
 6. Chapter 3:6 expresses each possible shortfall as a list of atomic
    `ReplacementNeed` values (species plus offering designation). The scenario
    lists themselves are interpretive premises. `coverShortfalls_covers_of_mem`
