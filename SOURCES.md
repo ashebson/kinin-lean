@@ -53,16 +53,19 @@ The theorem names use the Koppel column.
    is represented separately by `roundTripLossProtectedLast`.
 5. Chapter 3:2 follows Koppel/Reiss. The priest uses the fixed action list
    `canonicalHalfSplitActions`, chosen before the hidden world: exactly half
-   the birds are burnts above and half sins below. A `HiddenOwnershipWorld`
-   assigns the above positions among each owner's block, bounded by that
-   block's bird count and summing to half the total. `ownershipMajorityPayoff`
-   counts valid birds owner by owner and contains no subset-sum answer.
-   Deficit/excess balance proves every such allocation attains at least twice
-   the complementary smallest majority. `allocationFromSelection` constructs
-   a matching worst world from the largest whole-owner subset at most half,
-   proving exact maximin optimality. The remaining interpretive premise is
-   that per-owner above counts completely capture the relevant uncertainty of
-   the unidentified physical birds; action order is treated as symmetric.
+   the birds are burnts above and half sins below. A `PhysicalOwnershipWorld`
+   contains one level entry for every individual bird of every owner and
+   globally requires exactly half above. `physicalMajorityPayoff` counts valid
+   birds directly from those lists and contains no subset-sum answer.
+   `ownerLevelsValid_order_irrelevant` proves order invariance, and
+   `OwnerBirdAssignment.valid_eq_compressed` proves that reducing each owner
+   to its above count preserves validity. Deficit/excess balance then proves
+   every physical world attains at least twice the complementary smallest
+   majority. `assignmentFromAllocation` realizes the matching largest-subset
+   worst world with individual bird levels, proving exact maximin optimality.
+   Global interleaving of different owners' bird identities is omitted because
+   the service semantics observes owner, level, and quota rather than temporal
+   position; this is the remaining representation choice.
 6. Chapter 3:6 expresses each possible shortfall as a list of atomic
    `ReplacementNeed` values (species plus offering designation). The scenario
    lists themselves are interpretive premises. `coverShortfalls_covers_of_mem`
