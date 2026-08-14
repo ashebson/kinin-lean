@@ -46,15 +46,27 @@ The theorem names use the Koppel column.
    designation.
 3. Ownership and liability labels are abstract natural numbers. The counting
    arguments depend on equality and block sizes, not biographical facts.
-4. Chapter 2:3 uses Koppel's recurrence: endpoint groups lose one guaranteed
-   pair per traversal and interior groups lose two. The reported alternative
-   opinion remains separate (`protectLast`).
+4. Chapter 2:3 models a traversal as unresolved exposure to adjacent group
+   boundaries: endpoint groups have one exposure and interior groups two.
+   `roundTripLoss` derives losses from those exposures. The reported
+   alternative opinion protects the last endpoint on the third traversal and
+   is represented separately by `roundTripLossProtectedLast`.
 5. Chapter 3:2 follows Koppel/Reiss: invalid birds equal twice the largest
    subset of whole owner-blocks whose pair count is at most half the total;
    valid birds are twice the complementary smallest majority. `subsetSums`
-   computes the examples.
-6. Chapter 3:6 uses the componentwise maximum of possible shortfall
-   inventories. The shortfall scenario lists are interpretive premises.
-   Majority and Ben Azzai totals remain separate.
+   computes the examples.  `majority_has_optimal_guarantee` proves that this
+   is the exact maximin value: every admissible whole-owner cut attains at
+   least the formula, while the largest-minority cut witnesses the matching
+   upper bound. The complementary-majority payoff is realized by explicit
+   `BlockService` values that count below/below, split, and above/above pairs;
+   the proof establishes the pair total, the half-above constraint, and the
+   resulting valid-bird count. Treating the hidden possibilities as cuts
+   between whole owner blocks remains the interpretive premise.
+6. Chapter 3:6 expresses each possible shortfall as a list of atomic
+   `ReplacementNeed` values (species plus offering designation). The scenario
+   lists themselves are interpretive premises. `coverShortfalls_covers_of_mem`
+   proves the computed inventory covers every scenario, and
+   `coverShortfalls_minimal` proves any such supply covers the computed one.
+   The Majority and Ben Azzai scenario sets remain separate.
 
 This is a formal model of the cited readings, not a ruling for practice.

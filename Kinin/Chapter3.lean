@@ -7,25 +7,60 @@ import Kinin.Majority
 namespace Kinnim
 
 theorem mishnah_3_1 :
+    (∀ pairs, (oneLevelProblem pairs).HasOptimalGuarantee pairs) ∧
     allAtOneLevelValidBirds [1, 1] = 2 ∧
     allAtOneLevelValidBirds [2, 2] = 4 ∧
     allAtOneLevelValidBirds [3, 3] = 6 ∧
     guaranteedHalfSplitBirds [1, 1] = 2 ∧
     guaranteedHalfSplitBirds [2, 2] = 4 ∧
     guaranteedHalfSplitBirds [3, 3] = 6 := by
-  decide
+  constructor
+  · exact oneLevel_has_optimal_guarantee
+  · decide
 
 theorem mishnah_3_2 :
+    (∀ pairsByOwner,
+      (majorityProblem pairsByOwner).HasOptimalGuarantee
+        (guaranteedHalfSplitBirds pairsByOwner)) ∧
+    (∀ pairsByOwner world,
+      cutServicePairCount (cutBlockServices pairsByOwner world) =
+          sumNats pairsByOwner ∧
+      cutServiceAboveBirds (cutBlockServices pairsByOwner world) =
+          sumNats pairsByOwner ∧
+      cutServiceValidBirds (cutBlockServices pairsByOwner world) =
+          majorityPayoff pairsByOwner world ()) ∧
     largestMinority [1, 2, 3, 10, 100] = 16 ∧
     guaranteedHalfSplitBirds [1, 2, 3, 10, 100] = 200 ∧
     largestMinority [4, 6, 7] = 7 ∧
     guaranteedHalfSplitBirds [4, 6, 7] = 20 := by
-  decide
+  constructor
+  · exact majority_has_optimal_guarantee
+  constructor
+  · exact cutBlockServices_realize_majorityPayoff
+  · decide
 
 theorem generalized_smallest_majority (pairsByOwner : List Nat) :
-    guaranteedHalfSplitBirds pairsByOwner =
-      2 * (sumNats pairsByOwner - largestMinority pairsByOwner) := by
-  rfl
+    (majorityProblem pairsByOwner).HasOptimalGuarantee
+      (guaranteedHalfSplitBirds pairsByOwner) :=
+  majority_has_optimal_guarantee pairsByOwner
+
+theorem generalized_smallest_majority_pair_service
+    (pairsByOwner : List Nat) (world : MajorityWorld pairsByOwner) :
+    cutServicePairCount (cutBlockServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    cutServiceAboveBirds (cutBlockServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    cutServiceValidBirds (cutBlockServices pairsByOwner world) =
+        majorityPayoff pairsByOwner world () :=
+  cutBlockServices_realize_majorityPayoff pairsByOwner world
+
+theorem generalized_smallest_majority_no_better
+    (pairsByOwner : List Nat) {larger : Nat}
+    (h : guaranteedHalfSplitBirds pairsByOwner < larger) :
+    ¬ ∃ action,
+      (majorityProblem pairsByOwner).Guarantees action larger := by
+  exact UncertaintyProblem.no_strategy_guarantees_more
+    (majority_has_optimal_guarantee pairsByOwner) h
 
 theorem mishnah_3_3 :
     allAtOneLevelValidBirds [1, 1] = 2 ∧
@@ -44,6 +79,11 @@ theorem mishnah_3_5 :
   decide
 
 theorem mishnah_3_6 :
+    (∀ (scenarios : List Inventory) (scenario : Inventory), scenario ∈ scenarios →
+      (coverShortfalls scenarios).Covers scenario) ∧
+    (∀ (scenarios : List Inventory) (supply : Inventory),
+      (∀ scenario ∈ scenarios, supply.Covers scenario) →
+      supply.Covers (coverShortfalls scenarios)) ∧
     (coverShortfalls oneSpeciesSimpleShortfalls).total = 1 ∧
     (coverShortfalls twoSpeciesSimpleShortfalls).total = 2 ∧
     (coverShortfalls oneSpeciesSpecifiedShortfalls).total = 3 ∧
@@ -52,6 +92,11 @@ theorem mishnah_3_6 :
     (coverShortfalls twoSpeciesFixedShortfalls).total = 6 ∧
     (coverShortfalls finalMajorityShortfalls).total = 7 ∧
     (coverShortfalls finalBenAzzaiShortfalls).total = 8 := by
-  decide
+  constructor
+  · intro scenarios scenario member
+    exact coverShortfalls_covers_of_mem member
+  constructor
+  · exact coverShortfalls_minimal
+  · decide
 
 end Kinnim

@@ -23,7 +23,8 @@ theorem mishnah_2_3 :
     iterateRoundTrips 1 [1, 2, 3, 4, 5, 6, 7] = [0, 0, 1, 2, 3, 4, 6] ∧
     iterateRoundTrips 2 [1, 2, 3, 4, 5, 6, 7] = [0, 0, 0, 0, 1, 2, 5] ∧
     iterateRoundTrips 3 [1, 2, 3, 4, 5, 6, 7] = [0, 0, 0, 0, 0, 0, 4] ∧
-    protectLast [0, 0, 0, 0, 0, 0, 5] = [0, 0, 0, 0, 0, 0, 5] := by
+    roundTripLossProtectedLast [0, 0, 0, 0, 1, 2, 5] =
+      [0, 0, 0, 0, 0, 0, 5] := by
   decide
 
 theorem mishnah_2_4 :
