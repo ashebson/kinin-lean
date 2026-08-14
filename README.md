@@ -9,7 +9,8 @@ The formalization is split into focused modules:
   worlds, permutations, and basic uncertainty algorithms;
 - `Kinin/Uncertainty.lean` — semantic maximin problems, attaining strategies,
   adversarial upper-bound worlds, and uniqueness of an optimal guarantee;
-- `Kinin/Flights.lean` — flight events and repeated group-loss recurrences;
+- `Kinin/Flights.lean` — flight observations, remedial classification, and
+  path-exposure transitions;
 - `Kinin/Majority.lean` — subset-sum majority and replacement-shortfall
   algorithms;
 - `Kinin/Chapter1.lean`, `Chapter2.lean`, and `Chapter3.lean` — the sixteen
@@ -24,7 +25,8 @@ Together they provide reusable definitions for:
 - consulted mixtures and ownership blocks;
 - flights and repeated round-trip loss through groups;
 - Koppel's generalized largest-minority / smallest-majority subset-sum solver;
-- componentwise replacement shortfalls and separately represented opinions.
+- atomic replacement liabilities, componentwise uncertainty covers, and
+  separately represented opinions.
 
 Every unit has a theorem named `mishnah_<chapter>_<unit>`. The original
 `mishnah_1_1` theorem and its symmetry lemmas are preserved. See
@@ -37,12 +39,21 @@ to `UncertaintyProblem.HasOptimalGuarantee`.  Consequently their theorems now
 contain both parts of a maximin proof: an attaining strategy and an admissible
 counter-world against every legal strategy.  In particular,
 `generalized_smallest_majority_no_better` rules out every larger guarantee.
+The majority payoff is also realized by explicit per-block services: every
+pair is classified as below/below, split, or above/above, exactly half of the
+birds are performed above, and the valid count is proved to equal the payoff.
 
-The chapter 2 flight recurrences and the chapter 3:6 shortfall scenarios are
-still explicit interpretive premises.  Their computed consequences are kernel
-checked, but they have not yet been derived from the individual `Bird` and
-`PriestAction` semantics.  The project records this boundary rather than
-describing those calculations as independent verification.
+Chapter 2 now separates observed consequences from their remedial rule and
+derives the 1-through-7 recurrence from endpoint/interior path exposures.  In
+3:6, scenario inventories are assembled from atomic species/designation
+liabilities, and `coverShortfalls_minimal` proves that their componentwise
+maximum is both sufficient and least.
+
+The remaining textual-to-model boundary is explicit: assigning a Mishnah case
+to a flight observation, whole-owner cut, or list of atomic replacement
+liabilities is an interpretive premise.  Lean checks every consequence after
+that assignment; it does not independently establish that the assignment is
+the uniquely correct reading of the Hebrew source.
 
 Build with Lean 4.32.1:
 

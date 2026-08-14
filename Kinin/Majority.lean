@@ -144,6 +144,72 @@ theorem oneLevel_has_optimal_guarantee (pairs : Nat) :
     · exact ⟨rfl, rfl⟩
     · cases action <;> simp [oneLevelProblem, oneLevelPayoff]
 
+/-! ## Pair-level realization of the majority payoff -/
+
+/-- A block service records how many closed pairs had both birds performed
+below, one bird at each level, or both birds above.  A same-level pair has one
+valid bird; a split pair has two. -/
+structure BlockService where
+  belowPairs : Nat
+  splitPairs : Nat
+  abovePairs : Nat
+  deriving DecidableEq, Repr
+
+def BlockService.pairCount (service : BlockService) : Nat :=
+  service.belowPairs + service.splitPairs + service.abovePairs
+
+def BlockService.aboveBirds (service : BlockService) : Nat :=
+  service.splitPairs + 2 * service.abovePairs
+
+def BlockService.validBirds (service : BlockService) : Nat :=
+  service.belowPairs + 2 * service.splitPairs + service.abovePairs
+
+theorem BlockService.valid_eq_pairs_plus_splits (service : BlockService) :
+    service.validBirds = service.pairCount + service.splitPairs := by
+  simp only [BlockService.validBirds, BlockService.pairCount]
+  omega
+
+/-- An explicit pairing that maximizes split pairs for a block with `pairs`
+closed pairs and `above` of its birds performed above. -/
+def optimalBlockService (pairs above : Nat) : BlockService :=
+  if above ≤ pairs then
+    { belowPairs := pairs - above, splitPairs := above, abovePairs := 0 }
+  else
+    { belowPairs := 0, splitPairs := 2 * pairs - above,
+      abovePairs := above - pairs }
+
+theorem optimalBlockService_pairCount
+    {pairs above : Nat} (capacity : above ≤ 2 * pairs) :
+    (optimalBlockService pairs above).pairCount = pairs := by
+  by_cases low : above ≤ pairs
+  · simp [optimalBlockService, low, BlockService.pairCount]
+  · simp [optimalBlockService, low, BlockService.pairCount]
+    omega
+
+theorem optimalBlockService_aboveBirds
+    {pairs above : Nat} (capacity : above ≤ 2 * pairs) :
+    (optimalBlockService pairs above).aboveBirds = above := by
+  by_cases low : above ≤ pairs
+  · simp [optimalBlockService, low, BlockService.aboveBirds]
+  · simp [optimalBlockService, low, BlockService.aboveBirds]
+    omega
+
+theorem optimalBlockService_validBirds
+    {pairs above : Nat} (capacity : above ≤ 2 * pairs) :
+    (optimalBlockService pairs above).validBirds =
+      pairs + Nat.min above (2 * pairs - above) := by
+  by_cases low : above ≤ pairs
+  · have minEq : Nat.min above (2 * pairs - above) = above := by
+      apply Nat.min_eq_left
+      omega
+    simp [optimalBlockService, low, BlockService.validBirds, minEq]
+    omega
+  · have minEq : Nat.min above (2 * pairs - above) = 2 * pairs - above := by
+      apply Nat.min_eq_right
+      omega
+    simp [optimalBlockService, low, BlockService.validBirds, minEq]
+    omega
+
 /-- An admissible uncertainty world for Koppel's argument is a cut made only
 between whole owner blocks, with the smaller side containing at most half of
 all pairs.  The Mishnah's `ha-merubeh kasher` rule assigns the complementary
@@ -156,6 +222,77 @@ structure MajorityWorld (pairsByOwner : List Nat) where
 def majorityPayoff (pairsByOwner : List Nat)
     (world : MajorityWorld pairsByOwner) (_action : Unit) : Nat :=
   2 * (sumNats pairsByOwner - world.minorityPairs)
+
+/-- The individual-pair realization of a whole-owner cut.  The minority block
+is performed entirely below.  The complementary block supplies all birds
+performed above, so exactly half of all birds are above. -/
+def cutBlockServices (pairsByOwner : List Nat)
+    (world : MajorityWorld pairsByOwner) : BlockService × BlockService :=
+  (optimalBlockService world.minorityPairs 0,
+   optimalBlockService
+      (sumNats pairsByOwner - world.minorityPairs)
+      (sumNats pairsByOwner))
+
+def cutServicePairCount (services : BlockService × BlockService) : Nat :=
+  services.1.pairCount + services.2.pairCount
+
+def cutServiceAboveBirds (services : BlockService × BlockService) : Nat :=
+  services.1.aboveBirds + services.2.aboveBirds
+
+def cutServiceValidBirds (services : BlockService × BlockService) : Nat :=
+  services.1.validBirds + services.2.validBirds
+
+theorem majorityWorld_twice_minority_le_total
+    {pairsByOwner : List Nat} (world : MajorityWorld pairsByOwner) :
+    2 * world.minorityPairs ≤ sumNats pairsByOwner := by
+  have multiplied :=
+    (Nat.le_div_iff_mul_le (by decide : 0 < 2)).1 world.atMostHalf
+  simpa [Nat.mul_comm] using multiplied
+
+theorem cutBlockServices_realize_majorityPayoff
+    (pairsByOwner : List Nat) (world : MajorityWorld pairsByOwner) :
+    cutServicePairCount (cutBlockServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    cutServiceAboveBirds (cutBlockServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    cutServiceValidBirds (cutBlockServices pairsByOwner world) =
+        majorityPayoff pairsByOwner world () := by
+  have twiceMinority := majorityWorld_twice_minority_le_total world
+  have minorityCapacity : 0 ≤ 2 * world.minorityPairs := Nat.zero_le _
+  have majorityCapacity :
+      sumNats pairsByOwner ≤
+        2 * (sumNats pairsByOwner - world.minorityPairs) := by
+    omega
+  have minorityPairs := optimalBlockService_pairCount minorityCapacity
+  have majorityPairs := optimalBlockService_pairCount majorityCapacity
+  have minorityAbove := optimalBlockService_aboveBirds minorityCapacity
+  have majorityAbove := optimalBlockService_aboveBirds majorityCapacity
+  have minorityValid := optimalBlockService_validBirds minorityCapacity
+  have majorityValid := optimalBlockService_validBirds majorityCapacity
+  have minorityMin :
+      Nat.min 0 (2 * world.minorityPairs - 0) = 0 :=
+    Nat.min_eq_left (Nat.zero_le _)
+  have majorityMin :
+      Nat.min (sumNats pairsByOwner)
+          (2 * (sumNats pairsByOwner - world.minorityPairs) -
+            sumNats pairsByOwner) =
+        2 * (sumNats pairsByOwner - world.minorityPairs) -
+          sumNats pairsByOwner := by
+    apply Nat.min_eq_right
+    omega
+  constructor
+  · simp only [cutServicePairCount, cutBlockServices]
+    rw [minorityPairs, majorityPairs]
+    omega
+  constructor
+  · simp only [cutServiceAboveBirds, cutBlockServices]
+    rw [minorityAbove, majorityAbove]
+    omega
+  · simp only [cutServiceValidBirds, cutBlockServices]
+    rw [minorityValid, majorityValid]
+    rw [minorityMin, majorityMin]
+    simp only [majorityPayoff]
+    omega
 
 def majorityProblem (pairsByOwner : List Nat) :
     UncertaintyProblem (MajorityWorld pairsByOwner) Unit where
@@ -199,6 +336,34 @@ structure Inventory where
 def Inventory.total (i : Inventory) : Nat :=
   i.turtleSin + i.turtleBurnt + i.youngSin + i.youngBurnt
 
+/-- One replacement liability, stated in the same species/designation
+vocabulary used for individual birds elsewhere in the model. -/
+structure ReplacementNeed where
+  species : BirdSpecies
+  offering : Offering
+  deriving DecidableEq, Repr
+
+def Inventory.add (a b : Inventory) : Inventory where
+  turtleSin := a.turtleSin + b.turtleSin
+  turtleBurnt := a.turtleBurnt + b.turtleBurnt
+  youngSin := a.youngSin + b.youngSin
+  youngBurnt := a.youngBurnt + b.youngBurnt
+
+def ReplacementNeed.inventory : ReplacementNeed → Inventory
+  | ⟨.turtledove, .sin⟩ => { turtleSin := 1 }
+  | ⟨.turtledove, .burnt⟩ => { turtleBurnt := 1 }
+  | ⟨.youngDove, .sin⟩ => { youngSin := 1 }
+  | ⟨.youngDove, .burnt⟩ => { youngBurnt := 1 }
+
+def inventoryOfNeeds : List ReplacementNeed → Inventory
+  | [] => {}
+  | need :: needs => need.inventory.add (inventoryOfNeeds needs)
+
+def turtleSinNeed : ReplacementNeed := ⟨.turtledove, .sin⟩
+def turtleBurntNeed : ReplacementNeed := ⟨.turtledove, .burnt⟩
+def youngSinNeed : ReplacementNeed := ⟨.youngDove, .sin⟩
+def youngBurntNeed : ReplacementNeed := ⟨.youngDove, .burnt⟩
+
 def Inventory.join (a b : Inventory) : Inventory where
   turtleSin := Nat.max a.turtleSin b.turtleSin
   turtleBurnt := Nat.max a.turtleBurnt b.turtleBurnt
@@ -209,30 +374,112 @@ def coverShortfalls : List Inventory → Inventory
   | [] => {}
   | x :: xs => x.join (coverShortfalls xs)
 
+/-- `supply.Covers need` means that the proposed replacement inventory meets
+every component of this possible shortfall. -/
+def Inventory.Covers (supply need : Inventory) : Prop :=
+  need.turtleSin ≤ supply.turtleSin ∧
+  need.turtleBurnt ≤ supply.turtleBurnt ∧
+  need.youngSin ≤ supply.youngSin ∧
+  need.youngBurnt ≤ supply.youngBurnt
+
+theorem Inventory.covers_refl (i : Inventory) : i.Covers i := by
+  simp [Inventory.Covers]
+
+theorem Inventory.covers_trans {a b c : Inventory}
+    (hab : a.Covers b) (hbc : b.Covers c) : a.Covers c := by
+  simp only [Inventory.Covers] at hab hbc ⊢
+  exact ⟨Nat.le_trans hbc.1 hab.1,
+    Nat.le_trans hbc.2.1 hab.2.1,
+    Nat.le_trans hbc.2.2.1 hab.2.2.1,
+    Nat.le_trans hbc.2.2.2 hab.2.2.2⟩
+
+theorem Inventory.join_covers_left (a b : Inventory) :
+    (a.join b).Covers a := by
+  simp only [Inventory.Covers, Inventory.join]
+  exact ⟨Nat.le_max_left _ _, Nat.le_max_left _ _,
+    Nat.le_max_left _ _, Nat.le_max_left _ _⟩
+
+theorem Inventory.join_covers_right (a b : Inventory) :
+    (a.join b).Covers b := by
+  simp only [Inventory.Covers, Inventory.join]
+  exact ⟨Nat.le_max_right _ _, Nat.le_max_right _ _,
+    Nat.le_max_right _ _, Nat.le_max_right _ _⟩
+
+theorem Inventory.covers_join {supply a b : Inventory}
+    (ha : supply.Covers a) (hb : supply.Covers b) :
+    supply.Covers (a.join b) := by
+  simp only [Inventory.Covers, Inventory.join] at ha hb ⊢
+  exact ⟨(Nat.max_le).2 ⟨ha.1, hb.1⟩,
+    (Nat.max_le).2 ⟨ha.2.1, hb.2.1⟩,
+    (Nat.max_le).2 ⟨ha.2.2.1, hb.2.2.1⟩,
+    (Nat.max_le).2 ⟨ha.2.2.2, hb.2.2.2⟩⟩
+
+theorem coverShortfalls_covers_of_mem
+    {scenario : Inventory} {scenarios : List Inventory}
+    (member : scenario ∈ scenarios) :
+    (coverShortfalls scenarios).Covers scenario := by
+  induction scenarios with
+  | nil => simp at member
+  | cons first rest ih =>
+      simp only [List.mem_cons] at member
+      simp only [coverShortfalls]
+      cases member with
+      | inl equal =>
+          subst first
+          exact Inventory.join_covers_left _ _
+      | inr tailMember =>
+          exact Inventory.covers_trans
+            (Inventory.join_covers_right _ _) (ih tailMember)
+
+/-- Componentwise maximum is not only sufficient: it is the least inventory
+that covers every possible shortfall scenario. -/
+theorem coverShortfalls_minimal
+    (scenarios : List Inventory) (supply : Inventory)
+    (coversAll : ∀ scenario ∈ scenarios, supply.Covers scenario) :
+    supply.Covers (coverShortfalls scenarios) := by
+  induction scenarios with
+  | nil => simp [coverShortfalls, Inventory.Covers]
+  | cons first rest ih =>
+      simp only [coverShortfalls]
+      apply Inventory.covers_join
+      · exact coversAll first (List.mem_cons_self)
+      · apply ih
+        intro scenario member
+        exact coversAll scenario (List.mem_cons_of_mem first member)
+
 def oneSpeciesSimpleShortfalls : List Inventory :=
-  [{ turtleBurnt := 1 }]
+  [inventoryOfNeeds [turtleBurntNeed]]
 
 def twoSpeciesSimpleShortfalls : List Inventory :=
-  [{ turtleBurnt := 1 }, { youngBurnt := 1 }]
+  [inventoryOfNeeds [turtleBurntNeed],
+   inventoryOfNeeds [youngBurntNeed]]
 
 def oneSpeciesSpecifiedShortfalls : List Inventory :=
-  [{ turtleSin := 1, turtleBurnt := 2 }]
+  [inventoryOfNeeds [turtleSinNeed, turtleBurntNeed, turtleBurntNeed]]
 
 def twoSpeciesSpecifiedShortfalls : List Inventory :=
-  [{ turtleSin := 1, turtleBurnt := 2 }, { youngBurnt := 1 }]
+  [inventoryOfNeeds [turtleSinNeed, turtleBurntNeed, turtleBurntNeed],
+   inventoryOfNeeds [youngBurntNeed]]
 
 def oneSpeciesFixedShortfalls : List Inventory :=
-  [{ turtleSin := 2, turtleBurnt := 3 }]
+  [inventoryOfNeeds
+    [turtleSinNeed, turtleSinNeed,
+     turtleBurntNeed, turtleBurntNeed, turtleBurntNeed]]
 
 def twoSpeciesFixedShortfalls : List Inventory :=
-  [{ turtleSin := 2, turtleBurnt := 3 }, { youngBurnt := 1 }]
+  [inventoryOfNeeds
+    [turtleSinNeed, turtleSinNeed,
+     turtleBurntNeed, turtleBurntNeed, turtleBurntNeed],
+   inventoryOfNeeds [youngBurntNeed]]
 
 def finalMajorityShortfalls : List Inventory :=
-  [{ turtleSin := 2, turtleBurnt := 2,
-     youngSin := 1, youngBurnt := 2 }]
+  [inventoryOfNeeds
+    [turtleSinNeed, turtleSinNeed, turtleBurntNeed, turtleBurntNeed,
+     youngSinNeed, youngBurntNeed, youngBurntNeed]]
 
 def finalBenAzzaiShortfalls : List Inventory :=
-  finalMajorityShortfalls ++ [{ youngSin := 2 }]
+  finalMajorityShortfalls ++
+    [inventoryOfNeeds [youngSinNeed, youngSinNeed]]
 
 
 end Kinnim
