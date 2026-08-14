@@ -325,7 +325,11 @@ theorem mishnah_1_1 :
     Valid .animal .sin .above ∧
     Valid .bird .burnt .above ∧
     Valid .animal .burnt .below := by
-  decide
+  constructor
+  · rfl
+  constructor
+  · rfl
+  constructor <;> rfl
 
 theorem mishnah_1_1_pair_rules :
     requiredOfferings .obligation = [.sin, .burnt] ∧
@@ -337,7 +341,7 @@ theorem mishnah_1_1_pair_rules :
 
 theorem changed_level_is_invalid (species : Species) (offering : Offering) :
     ¬ Valid species offering (otherLevel (prescribedLevel species offering)) := by
-  cases species <;> cases offering <;> decide
+  cases species <;> cases offering <;> intro h <;> cases h
 
 theorem changing_species_reverses_level
     (species : Species) (offering : Offering) :
