@@ -43,11 +43,15 @@ The chapter 3:2 strategy is the concrete, world-independent list
 `canonicalHalfSplitActions`: half of the numbered unidentified birds are
 offered as burnts above and half as sins below. Lean proves its length, split,
 and local validity before quantifying over hidden ownership worlds. Each world
-then allocates those above positions among the owner blocks, and validity is
-computed owner by owner from individual below/below, split, and above/above
-pairs. The operational payoff contains no majority formula. The formula is a
-theorem: every allocation achieves the smallest-majority bound, while an
-executable allocation constructed from the largest subset sum attains it.
+contains an individual level assignment for every physical bird of every
+owner. Validity is computed directly from those lists and the closed-pair
+quota. `ownerLevelsValid_order_irrelevant` proves that reordering physical
+birds cannot affect validity when the number above is unchanged, while
+`OwnerBirdAssignment.valid_eq_compressed` proves that compression to per-owner
+above counts is lossless. The operational payoff contains no majority formula.
+The formula is a theorem: every physical world achieves the
+smallest-majority bound, while a concrete physical world constructed from the
+largest subset sum attains it.
 
 Chapter 2 now separates observed consequences from their remedial rule and
 derives the 1-through-7 recurrence from endpoint/interior path exposures.  In
@@ -55,12 +59,14 @@ derives the 1-through-7 recurrence from endpoint/interior path exposures.  In
 liabilities, and `coverShortfalls_minimal` proves that their componentwise
 maximum is both sufficient and least.
 
-The remaining textual-to-model boundary is explicit: the chapter 3:2 model
-assumes that an unidentified ownership permutation is completely represented
-by its per-owner above counts; other chapters assign textual cases to flight
-observations or lists of atomic replacement liabilities. Lean checks every
-consequence after those assignments; it does not independently establish that
-they are the uniquely correct readings of the Hebrew source.
+The remaining textual-to-model boundary is explicit: chapter 3:2 represents a
+physical permutation by each owner's complete list of individual service
+levels and treats global interleaving as operationally irrelevant. The latter
+is supported by the proved owner-level order-invariance and lossless-
+compression theorems. Other chapters still assign textual cases to flight
+observations or lists of atomic replacement liabilities. Lean does not
+independently establish that these are the uniquely correct readings of the
+Hebrew source.
 
 Build with Lean 4.32.1:
 

@@ -79,18 +79,26 @@ theorem generalized_smallest_majority_individual_service
   cutIndividualServices_realize_majorityPayoff pairsByOwner world
 
 theorem generalized_smallest_majority_operational_lower_bound
-    (pairsByOwner : List Nat) (world : HiddenOwnershipWorld pairsByOwner) :
+    (pairsByOwner : List Nat) (world : PhysicalOwnershipWorld pairsByOwner) :
     guaranteedHalfSplitBirds pairsByOwner ≤
-      ownershipMajorityPayoff pairsByOwner world
+      physicalMajorityPayoff pairsByOwner world
         (canonicalHalfSplitActions (sumNats pairsByOwner)) :=
-  ownershipMajorityPayoff_lower_bound pairsByOwner world
+  physicalMajorityPayoff_lower_bound pairsByOwner world
 
 theorem generalized_smallest_majority_worst_world (pairsByOwner : List Nat) :
-    ∃ world : HiddenOwnershipWorld pairsByOwner,
-      ownershipMajorityPayoff pairsByOwner world
+    ∃ world : PhysicalOwnershipWorld pairsByOwner,
+      physicalMajorityPayoff pairsByOwner world
           (canonicalHalfSplitActions (sumNats pairsByOwner)) =
         guaranteedHalfSplitBirds pairsByOwner :=
-  exists_worstHiddenOwnershipWorld pairsByOwner
+  exists_worstPhysicalOwnershipWorld pairsByOwner
+
+theorem generalized_owner_order_irrelevant
+    {pairs : Nat} {first second : List Level}
+    (firstCount : first.length = 2 * pairs)
+    (secondCount : second.length = 2 * pairs)
+    (sameAbove : countLevel .above first = countLevel .above second) :
+    ownerLevelsValid pairs first = ownerLevelsValid pairs second :=
+  ownerLevelsValid_order_irrelevant firstCount secondCount sameAbove
 
 theorem generalized_smallest_majority_no_better
     (pairsByOwner : List Nat) {larger : Nat}

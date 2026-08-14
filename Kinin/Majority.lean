@@ -663,12 +663,212 @@ theorem allocationFromSelection_spec
         rw [minEq]
         exact ⟨by omega, by omega, by omega⟩
 
+/-! ## Physical individual-bird ownership worlds -/
+
+theorem countLevel_append (wanted : Level) (first second : List Level) :
+    countLevel wanted (first ++ second) =
+      countLevel wanted first + countLevel wanted second := by
+  induction first with
+  | nil => simp [countLevel]
+  | cons level levels ih => simp [countLevel, ih, Nat.add_assoc]
+
+theorem countLevel_le_length (wanted : Level) (levels : List Level) :
+    countLevel wanted levels ≤ levels.length := by
+  induction levels with
+  | nil => simp [countLevel]
+  | cons level levels ih =>
+      cases level <;> cases wanted <;> simp [countLevel] <;> omega
+
+theorem countLevel_below_add_above (levels : List Level) :
+    countLevel .below levels + countLevel .above levels = levels.length := by
+  induction levels with
+  | nil => rfl
+  | cons level levels ih =>
+      cases level <;> simp [countLevel] <;> omega
+
+def ownerLevelsValid (pairs : Nat) (levels : List Level) : Nat :=
+  Nat.min (countLevel .below levels) pairs +
+  Nat.min (countLevel .above levels) pairs
+
+theorem ownerLevelsValid_eq_optimalBlockService
+    {pairs : Nat} {levels : List Level} (birdCount : levels.length = 2 * pairs) :
+    ownerLevelsValid pairs levels =
+      (optimalBlockService pairs (countLevel .above levels)).validBirds := by
+  have partition := countLevel_below_add_above levels
+  have capacity : countLevel .above levels ≤ 2 * pairs := by
+    have bounded := countLevel_le_length .above levels
+    omega
+  rw [optimalBlockService_validBirds capacity]
+  by_cases low : countLevel .above levels ≤ pairs
+  · have belowLarge : pairs ≤ countLevel .below levels := by omega
+    have formulaMin :
+        Nat.min (countLevel .above levels)
+            (2 * pairs - countLevel .above levels) =
+          countLevel .above levels := by
+      apply Nat.min_eq_left
+      omega
+    simp only [ownerLevelsValid]
+    have belowMin :
+        Nat.min (countLevel .below levels) pairs = pairs :=
+      Nat.min_eq_right belowLarge
+    have aboveMin :
+        Nat.min (countLevel .above levels) pairs = countLevel .above levels :=
+      Nat.min_eq_left low
+    rw [belowMin, aboveMin, formulaMin]
+  · have aboveLarge : pairs ≤ countLevel .above levels := Nat.le_of_not_ge low
+    have belowSmall : countLevel .below levels ≤ pairs := by omega
+    have formulaMin :
+        Nat.min (countLevel .above levels)
+            (2 * pairs - countLevel .above levels) =
+          2 * pairs - countLevel .above levels := by
+      apply Nat.min_eq_right
+      omega
+    simp only [ownerLevelsValid]
+    have belowMin :
+        Nat.min (countLevel .below levels) pairs = countLevel .below levels :=
+      Nat.min_eq_left belowSmall
+    have aboveMin :
+        Nat.min (countLevel .above levels) pairs = pairs :=
+      Nat.min_eq_right aboveLarge
+    rw [belowMin, aboveMin, formulaMin]
+    omega
+
+/-- For each owner, retain one entry for every physical bird and the level at
+which that individual bird is acted upon. -/
+inductive OwnerBirdAssignment : List Nat → Type where
+  | nil : OwnerBirdAssignment []
+  | cons {pairs rest} (levels : List Level) (birdCount : levels.length = 2 * pairs)
+      (tail : OwnerBirdAssignment rest) : OwnerBirdAssignment (pairs :: rest)
+
+def OwnerBirdAssignment.aboveBirds :
+    {pairsByOwner : List Nat} → OwnerBirdAssignment pairsByOwner → Nat
+  | _, .nil => 0
+  | _, .cons levels _ tail => countLevel .above levels + tail.aboveBirds
+
+def OwnerBirdAssignment.validBirds :
+    {pairsByOwner : List Nat} → OwnerBirdAssignment pairsByOwner → Nat
+  | _, .nil => 0
+  | _, @OwnerBirdAssignment.cons pairs _ levels _ tail =>
+      ownerLevelsValid pairs levels + tail.validBirds
+
+def OwnerBirdAssignment.toAllocation :
+    {pairsByOwner : List Nat} → OwnerBirdAssignment pairsByOwner →
+      OwnerAllocation pairsByOwner
+  | _, .nil => .nil
+  | _, @OwnerBirdAssignment.cons pairs _ levels birdCount tail =>
+      .cons (countLevel .above levels) (by
+        have bounded := countLevel_le_length .above levels
+        omega) tail.toAllocation
+
+theorem OwnerBirdAssignment.toAllocation_aboveBirds
+    {pairsByOwner : List Nat} (assignment : OwnerBirdAssignment pairsByOwner) :
+    assignment.toAllocation.aboveBirds = assignment.aboveBirds := by
+  induction assignment with
+  | nil => rfl
+  | cons levels birdCount tail ih =>
+      simp [OwnerBirdAssignment.toAllocation, OwnerAllocation.aboveBirds,
+        OwnerBirdAssignment.aboveBirds, ih]
+
+/-- Compression to one above-count per owner loses no validity information. -/
+theorem OwnerBirdAssignment.valid_eq_compressed
+    {pairsByOwner : List Nat} (assignment : OwnerBirdAssignment pairsByOwner) :
+    assignment.validBirds = assignment.toAllocation.validBirds := by
+  induction assignment with
+  | nil => rfl
+  | @cons pairs rest levels birdCount tail ih =>
+      simp only [OwnerBirdAssignment.validBirds,
+        OwnerBirdAssignment.toAllocation, OwnerAllocation.validBirds]
+      rw [ownerLevelsValid_eq_optimalBlockService birdCount, ih]
+
+/-- Consequently, permuting an owner's physical birds without changing the
+number placed above cannot change that owner's valid count. -/
+theorem ownerLevelsValid_order_irrelevant
+    {pairs : Nat} {first second : List Level}
+    (firstCount : first.length = 2 * pairs)
+    (secondCount : second.length = 2 * pairs)
+    (sameAbove : countLevel .above first = countLevel .above second) :
+    ownerLevelsValid pairs first = ownerLevelsValid pairs second := by
+  rw [ownerLevelsValid_eq_optimalBlockService firstCount,
+    ownerLevelsValid_eq_optimalBlockService secondCount, sameAbove]
+
+theorem countLevel_above_replicate_above (n : Nat) :
+    countLevel .above (List.replicate n .above) = n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+      simp [List.replicate_succ, countLevel, ih]
+      omega
+
+theorem countLevel_above_replicate_below (n : Nat) :
+    countLevel .above (List.replicate n .below) = 0 := by
+  induction n with
+  | zero => rfl
+  | succ n ih => simp [List.replicate_succ, countLevel, ih]
+
+def levelsFromAbove (pairs above : Nat) : List Level :=
+  List.replicate above .above ++ List.replicate (2 * pairs - above) .below
+
+theorem levelsFromAbove_length {pairs above : Nat} (capacity : above ≤ 2 * pairs) :
+    (levelsFromAbove pairs above).length = 2 * pairs := by
+  simp [levelsFromAbove]
+  omega
+
+theorem levelsFromAbove_above {pairs above : Nat} (_capacity : above ≤ 2 * pairs) :
+    countLevel .above (levelsFromAbove pairs above) = above := by
+  simp [levelsFromAbove, countLevel_append,
+    countLevel_above_replicate_above, countLevel_above_replicate_below]
+
+/-- Every aggregate allocation has a concrete realization by individual bird
+level assignments. -/
+def assignmentFromAllocation :
+    {pairsByOwner : List Nat} → OwnerAllocation pairsByOwner →
+      OwnerBirdAssignment pairsByOwner
+  | _, .nil => .nil
+  | _, @OwnerAllocation.cons pairs _ above capacity tail =>
+      .cons (levelsFromAbove pairs above) (levelsFromAbove_length capacity)
+        (assignmentFromAllocation tail)
+
+theorem assignmentFromAllocation_aboveBirds
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    (assignmentFromAllocation allocation).aboveBirds = allocation.aboveBirds := by
+  induction allocation with
+  | nil => rfl
+  | @cons pairs rest above capacity tail ih =>
+      simp [assignmentFromAllocation, OwnerBirdAssignment.aboveBirds,
+        OwnerAllocation.aboveBirds, levelsFromAbove_above capacity, ih]
+
+theorem assignmentFromAllocation_validBirds
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    (assignmentFromAllocation allocation).validBirds = allocation.validBirds := by
+  induction allocation with
+  | nil => rfl
+  | @cons pairs rest above capacity tail ih =>
+      simp only [assignmentFromAllocation, OwnerBirdAssignment.validBirds,
+        OwnerAllocation.validBirds]
+      rw [ownerLevelsValid_eq_optimalBlockService
+        (levelsFromAbove_length capacity), levelsFromAbove_above capacity, ih]
+
+/-- A full physical world, before compression: every owner contributes exactly
+two birds per pair, and globally exactly half of all birds receive above-level
+actions. -/
+structure PhysicalOwnershipWorld (pairsByOwner : List Nat) where
+  assignment : OwnerBirdAssignment pairsByOwner
+  halfAbove : assignment.aboveBirds = sumNats pairsByOwner
+
 /-- A hidden ownership world assigns the fixed above-half positions among the
 owner blocks. Every owner has at most twice its pair count in birds, and the
 fixed strategy places exactly half of all birds above. -/
 structure HiddenOwnershipWorld (pairsByOwner : List Nat) where
   allocation : OwnerAllocation pairsByOwner
   halfAbove : allocation.aboveBirds = sumNats pairsByOwner
+
+def PhysicalOwnershipWorld.toHidden
+    {pairsByOwner : List Nat} (world : PhysicalOwnershipWorld pairsByOwner) :
+    HiddenOwnershipWorld pairsByOwner where
+  allocation := world.assignment.toAllocation
+  halfAbove := by
+    rw [world.assignment.toAllocation_aboveBirds]
+    exact world.halfAbove
 
 /-- Operational payoff: count valid birds owner by owner. No majority or
 subset-sum formula occurs in this definition. -/
@@ -743,6 +943,54 @@ theorem exists_worstHiddenOwnershipWorld (pairsByOwner : List Nat) :
       guaranteedHalfSplitBirds]
     dsimp only [allocation] at deviation ⊢
     omega
+
+/-- The public physical evaluator counts directly over each owner's individual
+bird assignments. -/
+def physicalMajorityPayoff (pairsByOwner : List Nat)
+    (world : PhysicalOwnershipWorld pairsByOwner)
+    (actions : List PriestAction) : Nat :=
+  if actions == canonicalHalfSplitActions (sumNats pairsByOwner) then
+    world.assignment.validBirds
+  else 0
+
+theorem physicalMajorityPayoff_eq_compressed
+    (pairsByOwner : List Nat) (world : PhysicalOwnershipWorld pairsByOwner)
+    (actions : List PriestAction) :
+    physicalMajorityPayoff pairsByOwner world actions =
+      ownershipMajorityPayoff pairsByOwner world.toHidden actions := by
+  simp only [physicalMajorityPayoff, ownershipMajorityPayoff,
+    PhysicalOwnershipWorld.toHidden]
+  by_cases canonical :
+      actions == canonicalHalfSplitActions (sumNats pairsByOwner)
+  · simp only [canonical, if_true]
+    exact world.assignment.valid_eq_compressed
+  · simp [canonical]
+
+theorem physicalMajorityPayoff_lower_bound
+    (pairsByOwner : List Nat) (world : PhysicalOwnershipWorld pairsByOwner) :
+    guaranteedHalfSplitBirds pairsByOwner ≤
+      physicalMajorityPayoff pairsByOwner world
+        (canonicalHalfSplitActions (sumNats pairsByOwner)) := by
+  rw [physicalMajorityPayoff_eq_compressed]
+  exact ownershipMajorityPayoff_lower_bound pairsByOwner world.toHidden
+
+theorem exists_worstPhysicalOwnershipWorld (pairsByOwner : List Nat) :
+    ∃ world : PhysicalOwnershipWorld pairsByOwner,
+      physicalMajorityPayoff pairsByOwner world
+          (canonicalHalfSplitActions (sumNats pairsByOwner)) =
+        guaranteedHalfSplitBirds pairsByOwner := by
+  obtain ⟨hidden, worst⟩ := exists_worstHiddenOwnershipWorld pairsByOwner
+  let assignment := assignmentFromAllocation hidden.allocation
+  have halfAbove : assignment.aboveBirds = sumNats pairsByOwner := by
+    dsimp only [assignment]
+    rw [assignmentFromAllocation_aboveBirds, hidden.halfAbove]
+  refine ⟨{ assignment := assignment, halfAbove := halfAbove }, ?_⟩
+  have hiddenValid :
+      hidden.allocation.validBirds = guaranteedHalfSplitBirds pairsByOwner := by
+    simpa [ownershipMajorityPayoff] using worst
+  simp only [physicalMajorityPayoff, beq_self_eq_true, if_true]
+  dsimp only [assignment]
+  rw [assignmentFromAllocation_validBirds, hiddenValid]
 
 /-- An admissible uncertainty world for Koppel's argument is a cut made only
 between whole owner blocks, with the smaller side containing at most half of
@@ -892,10 +1140,10 @@ theorem operationalMajorityPayoff_eq_formula
   exact (cutIndividualServices_realize_majorityPayoff pairsByOwner world).2.2
 
 def majorityProblem (pairsByOwner : List Nat) :
-    UncertaintyProblem (HiddenOwnershipWorld pairsByOwner) (List PriestAction) where
+    UncertaintyProblem (PhysicalOwnershipWorld pairsByOwner) (List PriestAction) where
   admissible _ := True
   legal := HalfSplitLegal pairsByOwner
-  payoff := ownershipMajorityPayoff pairsByOwner
+  payoff := physicalMajorityPayoff pairsByOwner
 
 def largestMinorityWorld (pairsByOwner : List Nat) :
     MajorityWorld pairsByOwner where
@@ -910,9 +1158,9 @@ theorem majority_has_optimal_guarantee (pairsByOwner : List Nat) :
   · refine ⟨canonicalHalfSplitActions (sumNats pairsByOwner),
       canonicalHalfSplitLegal pairsByOwner, ?_⟩
     intro world _
-    exact ownershipMajorityPayoff_lower_bound pairsByOwner world
+    exact physicalMajorityPayoff_lower_bound pairsByOwner world
   · intro actions legal
-    obtain ⟨world, worst⟩ := exists_worstHiddenOwnershipWorld pairsByOwner
+    obtain ⟨world, worst⟩ := exists_worstPhysicalOwnershipWorld pairsByOwner
     refine ⟨world, True.intro, ?_⟩
     simp only [majorityProblem]
     rw [legal.1, worst]
