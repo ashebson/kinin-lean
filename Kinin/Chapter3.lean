@@ -22,12 +22,22 @@ theorem mishnah_3_2 :
     (∀ pairsByOwner,
       (majorityProblem pairsByOwner).HasOptimalGuarantee
         (guaranteedHalfSplitBirds pairsByOwner)) ∧
+    (∀ pairsByOwner,
+      HalfSplitLegal pairsByOwner
+        (canonicalHalfSplitActions (sumNats pairsByOwner))) ∧
     (∀ pairsByOwner world,
       cutServicePairCount (cutBlockServices pairsByOwner world) =
           sumNats pairsByOwner ∧
       cutServiceAboveBirds (cutBlockServices pairsByOwner world) =
           sumNats pairsByOwner ∧
       cutServiceValidBirds (cutBlockServices pairsByOwner world) =
+          majorityPayoff pairsByOwner world ()) ∧
+    (∀ pairsByOwner world,
+      individualPairCount (cutIndividualServices pairsByOwner world) =
+          sumNats pairsByOwner ∧
+      individualAboveBirds (cutIndividualServices pairsByOwner world) =
+          sumNats pairsByOwner ∧
+      individualValidBirds (cutIndividualServices pairsByOwner world) =
           majorityPayoff pairsByOwner world ()) ∧
     largestMinority [1, 2, 3, 10, 100] = 16 ∧
     guaranteedHalfSplitBirds [1, 2, 3, 10, 100] = 200 ∧
@@ -36,7 +46,11 @@ theorem mishnah_3_2 :
   constructor
   · exact majority_has_optimal_guarantee
   constructor
+  · exact canonicalHalfSplitLegal
+  constructor
   · exact cutBlockServices_realize_majorityPayoff
+  constructor
+  · exact cutIndividualServices_realize_majorityPayoff
   · decide
 
 theorem generalized_smallest_majority (pairsByOwner : List Nat) :
@@ -53,6 +67,30 @@ theorem generalized_smallest_majority_pair_service
     cutServiceValidBirds (cutBlockServices pairsByOwner world) =
         majorityPayoff pairsByOwner world () :=
   cutBlockServices_realize_majorityPayoff pairsByOwner world
+
+theorem generalized_smallest_majority_individual_service
+    (pairsByOwner : List Nat) (world : MajorityWorld pairsByOwner) :
+    individualPairCount (cutIndividualServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    individualAboveBirds (cutIndividualServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    individualValidBirds (cutIndividualServices pairsByOwner world) =
+        majorityPayoff pairsByOwner world () :=
+  cutIndividualServices_realize_majorityPayoff pairsByOwner world
+
+theorem generalized_smallest_majority_operational_lower_bound
+    (pairsByOwner : List Nat) (world : HiddenOwnershipWorld pairsByOwner) :
+    guaranteedHalfSplitBirds pairsByOwner ≤
+      ownershipMajorityPayoff pairsByOwner world
+        (canonicalHalfSplitActions (sumNats pairsByOwner)) :=
+  ownershipMajorityPayoff_lower_bound pairsByOwner world
+
+theorem generalized_smallest_majority_worst_world (pairsByOwner : List Nat) :
+    ∃ world : HiddenOwnershipWorld pairsByOwner,
+      ownershipMajorityPayoff pairsByOwner world
+          (canonicalHalfSplitActions (sumNats pairsByOwner)) =
+        guaranteedHalfSplitBirds pairsByOwner :=
+  exists_worstHiddenOwnershipWorld pairsByOwner
 
 theorem generalized_smallest_majority_no_better
     (pairsByOwner : List Nat) {larger : Nat}

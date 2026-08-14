@@ -169,6 +169,197 @@ theorem BlockService.valid_eq_pairs_plus_splits (service : BlockService) :
   simp only [BlockService.validBirds, BlockService.pairCount]
   omega
 
+/-! ## An executable, world-independent half-split service -/
+
+/-- The offering appropriate to a bird service level. -/
+def offeringAtLevel : Level → Offering
+  | .below => .sin
+  | .above => .burnt
+
+/-- A concrete action on a numbered unidentified bird. -/
+def actionAtLevel (birdId : Nat) (level : Level) : PriestAction where
+  birdId := birdId
+  offering := offeringAtLevel level
+  level := level
+
+/-- One fixed strategy, selected before any hidden ownership world: act on the
+first half above and the second half below.  Because the birds are
+unidentified, the numerical labels express physical order only. -/
+def canonicalHalfSplitActions (pairs : Nat) : List PriestAction :=
+  (List.range pairs).map (fun id => actionAtLevel id .above) ++
+  (List.range pairs).map (fun id => actionAtLevel (pairs + id) .below)
+
+def countAboveActions : List PriestAction → Nat
+  | [] => 0
+  | action :: actions =>
+      (if action.level == .above then 1 else 0) + countAboveActions actions
+
+def actionBirdIds (actions : List PriestAction) : List Nat :=
+  actions.map PriestAction.birdId
+
+def ActionsLocallyValid (actions : List PriestAction) : Prop :=
+  ∀ action ∈ actions, validLevel .bird action.offering action.level = true
+
+theorem countAboveActions_map_above (ids : List Nat) :
+    countAboveActions (ids.map (fun id => actionAtLevel id .above)) = ids.length := by
+  induction ids with
+  | nil => rfl
+  | cons id ids ih =>
+      change 1 + countAboveActions
+        (ids.map (fun id => actionAtLevel id .above)) = ids.length + 1
+      rw [ih]
+      omega
+
+theorem countAboveActions_map_below (offset : Nat) (ids : List Nat) :
+    countAboveActions
+        (ids.map (fun id => actionAtLevel (offset + id) .below)) = 0 := by
+  induction ids with
+  | nil => rfl
+  | cons id ids ih =>
+      have head :
+          (if (actionAtLevel (offset + id) .below).level == .above then 1 else 0) = 0 :=
+        rfl
+      simp only [List.map, countAboveActions, head, Nat.zero_add]
+      exact ih
+
+theorem countAboveActions_append (first second : List PriestAction) :
+    countAboveActions (first ++ second) =
+      countAboveActions first + countAboveActions second := by
+  induction first with
+  | nil => simp [countAboveActions]
+  | cons action actions ih => simp [countAboveActions, ih, Nat.add_assoc]
+
+theorem canonicalHalfSplitActions_length (pairs : Nat) :
+    (canonicalHalfSplitActions pairs).length = 2 * pairs := by
+  simp [canonicalHalfSplitActions]
+  omega
+
+theorem canonicalHalfSplitActions_above (pairs : Nat) :
+    countAboveActions (canonicalHalfSplitActions pairs) = pairs := by
+  simp [canonicalHalfSplitActions, countAboveActions_append,
+    countAboveActions_map_above, countAboveActions_map_below]
+
+theorem canonicalHalfSplitActions_birdIds (pairs : Nat) :
+    actionBirdIds (canonicalHalfSplitActions pairs) = List.range (2 * pairs) := by
+  have ranges := (List.range_add (n := pairs) (m := pairs)).symm
+  simp [actionBirdIds, canonicalHalfSplitActions, actionAtLevel,
+    Function.comp_def]
+  rw [show 2 * pairs = pairs + pairs by omega]
+  exact ranges
+
+theorem canonicalHalfSplitActions_noDuplicateBirds (pairs : Nat) :
+    (actionBirdIds (canonicalHalfSplitActions pairs)).Nodup := by
+  rw [canonicalHalfSplitActions_birdIds]
+  exact List.nodup_range
+
+theorem canonicalHalfSplitActions_locallyValid (pairs : Nat) :
+    ActionsLocallyValid (canonicalHalfSplitActions pairs) := by
+  intro action member
+  simp only [canonicalHalfSplitActions, List.mem_append, List.mem_map] at member
+  rcases member with ⟨id, _, equal⟩ | ⟨id, _, equal⟩
+  · subst action
+    simp [actionAtLevel, offeringAtLevel, validLevel, prescribedLevel]
+  · subst action
+    simp [actionAtLevel, offeringAtLevel, validLevel, prescribedLevel]
+
+/-- The three possible level patterns of the two individual birds belonging
+to a closed pair. -/
+inductive PairService where
+  | bothBelow
+  | split
+  | bothAbove
+  deriving DecidableEq, Repr
+
+def PairService.levels : PairService → List Level
+  | .bothBelow => [.below, .below]
+  | .split => [.below, .above]
+  | .bothAbove => [.above, .above]
+
+def countLevel (wanted : Level) : List Level → Nat
+  | [] => 0
+  | level :: levels =>
+      (if level == wanted then 1 else 0) + countLevel wanted levels
+
+/-- Validity is calculated from the closed pair's quota of one sin and one
+burnt offering, not entered as a 1/2/1 answer table. -/
+def PairService.validBirds (service : PairService) : Nat :=
+  Nat.min (countLevel .below service.levels) 1 +
+  Nat.min (countLevel .above service.levels) 1
+
+def PairService.aboveBirds (service : PairService) : Nat :=
+  countLevel .above service.levels
+
+theorem PairService.validBirds_cases :
+    PairService.bothBelow.validBirds = 1 ∧
+    PairService.split.validBirds = 2 ∧
+    PairService.bothAbove.validBirds = 1 := by
+  decide
+
+/-- Expand aggregate bookkeeping into one value for every physical pair. -/
+def BlockService.individualPairs (service : BlockService) : List PairService :=
+  List.replicate service.belowPairs .bothBelow ++
+  List.replicate service.splitPairs .split ++
+  List.replicate service.abovePairs .bothAbove
+
+def individualPairCount (services : List PairService) : Nat := services.length
+
+def individualAboveBirds : List PairService → Nat
+  | [] => 0
+  | service :: services => service.aboveBirds + individualAboveBirds services
+
+def individualValidBirds : List PairService → Nat
+  | [] => 0
+  | service :: services => service.validBirds + individualValidBirds services
+
+theorem individualAboveBirds_append (first second : List PairService) :
+    individualAboveBirds (first ++ second) =
+      individualAboveBirds first + individualAboveBirds second := by
+  induction first with
+  | nil => simp [individualAboveBirds]
+  | cons service services ih => simp [individualAboveBirds, ih, Nat.add_assoc]
+
+theorem individualValidBirds_append (first second : List PairService) :
+    individualValidBirds (first ++ second) =
+      individualValidBirds first + individualValidBirds second := by
+  induction first with
+  | nil => simp [individualValidBirds]
+  | cons service services ih => simp [individualValidBirds, ih, Nat.add_assoc]
+
+theorem individualAboveBirds_replicate (n : Nat) (service : PairService) :
+    individualAboveBirds (List.replicate n service) = n * service.aboveBirds := by
+  induction n with
+  | zero => simp [individualAboveBirds]
+  | succ n ih =>
+      rw [List.replicate_succ, individualAboveBirds, ih, Nat.succ_mul]
+      omega
+
+theorem individualValidBirds_replicate (n : Nat) (service : PairService) :
+    individualValidBirds (List.replicate n service) = n * service.validBirds := by
+  induction n with
+  | zero => simp [individualValidBirds]
+  | succ n ih =>
+      rw [List.replicate_succ, individualValidBirds, ih, Nat.succ_mul]
+      omega
+
+theorem individualPairs_pairCount (service : BlockService) :
+    individualPairCount service.individualPairs = service.pairCount := by
+  simp [individualPairCount, BlockService.individualPairs, BlockService.pairCount]
+  omega
+
+theorem individualPairs_aboveBirds (service : BlockService) :
+    individualAboveBirds service.individualPairs = service.aboveBirds := by
+  simp [BlockService.individualPairs, individualAboveBirds_append,
+    individualAboveBirds_replicate, PairService.aboveBirds,
+    PairService.levels, countLevel, BlockService.aboveBirds]
+  omega
+
+theorem individualPairs_validBirds (service : BlockService) :
+    individualValidBirds service.individualPairs = service.validBirds := by
+  simp [BlockService.individualPairs, individualValidBirds_append,
+    individualValidBirds_replicate, PairService.validBirds,
+    PairService.levels, countLevel, BlockService.validBirds]
+  omega
+
 /-- An explicit pairing that maximizes split pairs for a block with `pairs`
 closed pairs and `above` of its birds performed above. -/
 def optimalBlockService (pairs above : Nat) : BlockService :=
@@ -210,6 +401,349 @@ theorem optimalBlockService_validBirds
     simp [optimalBlockService, low, BlockService.validBirds, minEq]
     omega
 
+/-! ## Hidden ownership allocations for the fixed action list -/
+
+/-- A selection of whole owner blocks. -/
+inductive OwnerSelection : List Nat → Type where
+  | nil : OwnerSelection []
+  | take {pairs rest} : OwnerSelection rest → OwnerSelection (pairs :: rest)
+  | skip {pairs rest} : OwnerSelection rest → OwnerSelection (pairs :: rest)
+
+def OwnerSelection.selectedPairs :
+    {pairsByOwner : List Nat} → OwnerSelection pairsByOwner → Nat
+  | _, .nil => 0
+  | _, @OwnerSelection.take pairs _ selection =>
+      pairs + selection.selectedPairs
+  | _, @OwnerSelection.skip _ _ selection => selection.selectedPairs
+
+def OwnerSelection.unselectedPairs :
+    {pairsByOwner : List Nat} → OwnerSelection pairsByOwner → Nat
+  | _, .nil => 0
+  | _, @OwnerSelection.take _ _ selection => selection.unselectedPairs
+  | _, @OwnerSelection.skip pairs _ selection =>
+      pairs + selection.unselectedPairs
+
+theorem OwnerSelection.selected_add_unselected
+    {pairsByOwner : List Nat} (selection : OwnerSelection pairsByOwner) :
+    selection.selectedPairs + selection.unselectedPairs = sumNats pairsByOwner := by
+  induction selection with
+  | nil => rfl
+  | @take pairs rest selection ih =>
+      simp [OwnerSelection.selectedPairs, OwnerSelection.unselectedPairs, sumNats]
+      omega
+  | @skip pairs rest selection ih =>
+      simp [OwnerSelection.selectedPairs, OwnerSelection.unselectedPairs, sumNats]
+      omega
+
+theorem selection_exists_of_mem_subsetSums
+    {pairsByOwner : List Nat} {target : Nat}
+    (member : target ∈ subsetSums pairsByOwner) :
+    ∃ selection : OwnerSelection pairsByOwner,
+      selection.selectedPairs = target := by
+  induction pairsByOwner generalizing target with
+  | nil =>
+      simp [subsetSums] at member
+      subst target
+      exact ⟨.nil, rfl⟩
+  | cons pairs rest ih =>
+      simp only [subsetSums, List.mem_append] at member
+      rcases member with tailMember | addedMember
+      · obtain ⟨selection, selected⟩ := ih tailMember
+        exact ⟨.skip selection, selected⟩
+      · simp only [List.mem_map] at addedMember
+        obtain ⟨tailTarget, tailMember, equal⟩ := addedMember
+        obtain ⟨selection, selected⟩ := ih tailMember
+        refine ⟨.take selection, ?_⟩
+        simp [OwnerSelection.selectedPairs, selected]
+        omega
+
+/-- For every owner block, record how many of its birds occupy the above half
+of the fixed action list.  Capacity is the only local restriction. -/
+inductive OwnerAllocation : List Nat → Type where
+  | nil : OwnerAllocation []
+  | cons {pairs rest} (above : Nat) (capacity : above ≤ 2 * pairs)
+      (tail : OwnerAllocation rest) : OwnerAllocation (pairs :: rest)
+
+def OwnerAllocation.aboveBirds :
+    {pairsByOwner : List Nat} → OwnerAllocation pairsByOwner → Nat
+  | _, .nil => 0
+  | _, .cons above _ tail => above + tail.aboveBirds
+
+def OwnerAllocation.validBirds :
+    {pairsByOwner : List Nat} → OwnerAllocation pairsByOwner → Nat
+  | _, .nil => 0
+  | _, @OwnerAllocation.cons pairs _ above _ tail =>
+      (optimalBlockService pairs above).validBirds + tail.validBirds
+
+def OwnerAllocation.deficit :
+    {pairsByOwner : List Nat} → OwnerAllocation pairsByOwner → Nat
+  | _, .nil => 0
+  | _, @OwnerAllocation.cons pairs _ above _ tail =>
+      (pairs - above) + tail.deficit
+
+def OwnerAllocation.excess :
+    {pairsByOwner : List Nat} → OwnerAllocation pairsByOwner → Nat
+  | _, .nil => 0
+  | _, @OwnerAllocation.cons pairs _ above _ tail =>
+      (above - pairs) + tail.excess
+
+def OwnerAllocation.lowPairs :
+    {pairsByOwner : List Nat} → OwnerAllocation pairsByOwner → Nat
+  | _, .nil => 0
+  | _, @OwnerAllocation.cons pairs _ above _ tail =>
+      if above ≤ pairs then pairs + tail.lowPairs else tail.lowPairs
+
+def OwnerAllocation.highPairs :
+    {pairsByOwner : List Nat} → OwnerAllocation pairsByOwner → Nat
+  | _, .nil => 0
+  | _, @OwnerAllocation.cons pairs _ above _ tail =>
+      if above ≤ pairs then tail.highPairs else pairs + tail.highPairs
+
+theorem OwnerAllocation.low_mem_subsetSums
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    allocation.lowPairs ∈ subsetSums pairsByOwner := by
+  induction allocation with
+  | nil => simp [OwnerAllocation.lowPairs, subsetSums]
+  | @cons pairs rest above capacity tail ih =>
+      by_cases low : above ≤ pairs
+      · simp only [OwnerAllocation.lowPairs, low, if_pos, subsetSums,
+          List.mem_append, List.mem_map]
+        right
+        exact ⟨tail.lowPairs, ih, by omega⟩
+      · simp only [OwnerAllocation.lowPairs, low, subsetSums,
+          List.mem_append]
+        exact Or.inl ih
+
+theorem OwnerAllocation.high_mem_subsetSums
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    allocation.highPairs ∈ subsetSums pairsByOwner := by
+  induction allocation with
+  | nil => simp [OwnerAllocation.highPairs, subsetSums]
+  | @cons pairs rest above capacity tail ih =>
+      by_cases low : above ≤ pairs
+      · simp only [OwnerAllocation.highPairs, low, if_pos, subsetSums,
+          List.mem_append]
+        exact Or.inl ih
+      · simp only [OwnerAllocation.highPairs, low, subsetSums,
+          List.mem_append, List.mem_map]
+        right
+        exact ⟨tail.highPairs, ih, by simp [Nat.add_comm]⟩
+
+theorem OwnerAllocation.low_add_high
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    allocation.lowPairs + allocation.highPairs = sumNats pairsByOwner := by
+  induction allocation with
+  | nil => rfl
+  | @cons pairs rest above capacity tail ih =>
+      by_cases low : above ≤ pairs
+      · simp [OwnerAllocation.lowPairs, OwnerAllocation.highPairs, low, sumNats]
+        omega
+      · simp [OwnerAllocation.lowPairs, OwnerAllocation.highPairs, low, sumNats]
+        omega
+
+theorem OwnerAllocation.deficit_le_lowPairs
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    allocation.deficit ≤ allocation.lowPairs := by
+  induction allocation with
+  | nil => simp [OwnerAllocation.deficit, OwnerAllocation.lowPairs]
+  | @cons pairs rest above capacity tail ih =>
+      by_cases low : above ≤ pairs
+      · simp [OwnerAllocation.deficit, OwnerAllocation.lowPairs, low]
+        omega
+      · simp [OwnerAllocation.deficit, OwnerAllocation.lowPairs, low]
+        omega
+
+theorem OwnerAllocation.excess_le_highPairs
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    allocation.excess ≤ allocation.highPairs := by
+  induction allocation with
+  | nil => simp [OwnerAllocation.excess, OwnerAllocation.highPairs]
+  | @cons pairs rest above capacity tail ih =>
+      by_cases low : above ≤ pairs
+      · simp [OwnerAllocation.excess, OwnerAllocation.highPairs, low]
+        omega
+      · simp [OwnerAllocation.excess, OwnerAllocation.highPairs, low]
+        omega
+
+theorem OwnerAllocation.balance
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    allocation.aboveBirds + allocation.deficit =
+      sumNats pairsByOwner + allocation.excess := by
+  induction allocation with
+  | nil => rfl
+  | @cons pairs rest above capacity tail ih =>
+      simp [OwnerAllocation.aboveBirds, OwnerAllocation.deficit,
+        OwnerAllocation.excess, sumNats]
+      omega
+
+theorem optimalBlockService_valid_plus_deviation
+    {pairs above : Nat} (capacity : above ≤ 2 * pairs) :
+    (optimalBlockService pairs above).validBirds +
+        (pairs - above) + (above - pairs) = 2 * pairs := by
+  rw [optimalBlockService_validBirds capacity]
+  by_cases low : above ≤ pairs
+  · have minEq : Nat.min above (2 * pairs - above) = above := by
+      apply Nat.min_eq_left
+      omega
+    rw [minEq]
+    omega
+  · have minEq : Nat.min above (2 * pairs - above) = 2 * pairs - above := by
+      apply Nat.min_eq_right
+      omega
+    rw [minEq]
+    omega
+
+theorem OwnerAllocation.valid_plus_deviation
+    {pairsByOwner : List Nat} (allocation : OwnerAllocation pairsByOwner) :
+    allocation.validBirds + allocation.deficit + allocation.excess =
+      2 * sumNats pairsByOwner := by
+  induction allocation with
+  | nil => rfl
+  | @cons pairs rest above capacity tail ih =>
+      have localEq := optimalBlockService_valid_plus_deviation capacity
+      simp [OwnerAllocation.validBirds, OwnerAllocation.deficit,
+        OwnerAllocation.excess, sumNats]
+      omega
+
+/-- Fill the unselected owner blocks above their one-per-pair baseline until
+`amount` excess birds have been placed. Selected blocks are entirely below. -/
+def allocationFromSelection :
+    {pairsByOwner : List Nat} → (selection : OwnerSelection pairsByOwner) →
+      Nat → OwnerAllocation pairsByOwner
+  | _, .nil, _ => .nil
+  | _, @OwnerSelection.take pairs rest selection, amount =>
+      .cons 0 (Nat.zero_le _) (allocationFromSelection selection amount)
+  | _, @OwnerSelection.skip pairs rest selection, amount =>
+      .cons (pairs + Nat.min amount pairs) (by
+        calc
+          pairs + Nat.min amount pairs ≤ pairs + pairs :=
+            Nat.add_le_add_left (Nat.min_le_right amount pairs) pairs
+          _ = 2 * pairs := by omega)
+        (allocationFromSelection selection (amount - pairs))
+
+theorem allocationFromSelection_spec
+    {pairsByOwner : List Nat} (selection : OwnerSelection pairsByOwner)
+    (amount : Nat) (fits : amount ≤ selection.unselectedPairs) :
+    let allocation := allocationFromSelection selection amount
+    allocation.aboveBirds = selection.unselectedPairs + amount ∧
+    allocation.deficit = selection.selectedPairs ∧
+    allocation.excess = amount := by
+  induction selection generalizing amount with
+  | nil =>
+      have zero : amount = 0 := by
+        simpa [OwnerSelection.unselectedPairs] using fits
+      subst amount
+      decide
+  | @take pairs rest selection ih =>
+      simp only [OwnerSelection.unselectedPairs] at fits
+      obtain ⟨above, deficit, excess⟩ := ih amount fits
+      simp only [allocationFromSelection, OwnerAllocation.aboveBirds,
+        OwnerAllocation.deficit, OwnerAllocation.excess,
+        OwnerSelection.unselectedPairs, OwnerSelection.selectedPairs]
+      exact ⟨by simpa using above, by omega, by simpa using excess⟩
+  | @skip pairs rest selection ih =>
+      by_cases small : amount ≤ pairs
+      · have tailFits : amount - pairs ≤ selection.unselectedPairs := by omega
+        obtain ⟨above, deficit, excess⟩ := ih (amount - pairs) tailFits
+        have minEq : Nat.min amount pairs = amount := Nat.min_eq_left small
+        simp only [allocationFromSelection, OwnerAllocation.aboveBirds,
+          OwnerAllocation.deficit, OwnerAllocation.excess,
+          OwnerSelection.unselectedPairs, OwnerSelection.selectedPairs]
+        rw [minEq]
+        exact ⟨by omega, by omega, by omega⟩
+      · have pairsLe : pairs ≤ amount := Nat.le_of_not_ge small
+        have tailFits : amount - pairs ≤ selection.unselectedPairs := by
+          simp only [OwnerSelection.unselectedPairs] at fits
+          omega
+        obtain ⟨above, deficit, excess⟩ := ih (amount - pairs) tailFits
+        have minEq : Nat.min amount pairs = pairs := Nat.min_eq_right pairsLe
+        simp only [allocationFromSelection, OwnerAllocation.aboveBirds,
+          OwnerAllocation.deficit, OwnerAllocation.excess,
+          OwnerSelection.unselectedPairs, OwnerSelection.selectedPairs]
+        rw [minEq]
+        exact ⟨by omega, by omega, by omega⟩
+
+/-- A hidden ownership world assigns the fixed above-half positions among the
+owner blocks. Every owner has at most twice its pair count in birds, and the
+fixed strategy places exactly half of all birds above. -/
+structure HiddenOwnershipWorld (pairsByOwner : List Nat) where
+  allocation : OwnerAllocation pairsByOwner
+  halfAbove : allocation.aboveBirds = sumNats pairsByOwner
+
+/-- Operational payoff: count valid birds owner by owner. No majority or
+subset-sum formula occurs in this definition. -/
+def ownershipMajorityPayoff (pairsByOwner : List Nat)
+    (world : HiddenOwnershipWorld pairsByOwner)
+    (actions : List PriestAction) : Nat :=
+  if actions == canonicalHalfSplitActions (sumNats pairsByOwner) then
+    world.allocation.validBirds
+  else 0
+
+theorem HiddenOwnershipWorld.deficit_eq_excess
+    {pairsByOwner : List Nat} (world : HiddenOwnershipWorld pairsByOwner) :
+    world.allocation.deficit = world.allocation.excess := by
+  have balance := world.allocation.balance
+  rw [world.halfAbove] at balance
+  omega
+
+theorem HiddenOwnershipWorld.deficit_le_largestMinority
+    {pairsByOwner : List Nat} (world : HiddenOwnershipWorld pairsByOwner) :
+    world.allocation.deficit ≤ largestMinority pairsByOwner := by
+  have lowPlusHigh := world.allocation.low_add_high
+  have equalDeviation := world.deficit_eq_excess
+  by_cases lowHalf :
+      world.allocation.lowPairs ≤ sumNats pairsByOwner / 2
+  · exact Nat.le_trans world.allocation.deficit_le_lowPairs
+      (minority_le_largest world.allocation.low_mem_subsetSums lowHalf)
+  · have highHalf :
+        world.allocation.highPairs ≤ sumNats pairsByOwner / 2 := by
+      omega
+    exact Nat.le_trans
+      (by
+        rw [equalDeviation]
+        exact world.allocation.excess_le_highPairs)
+      (minority_le_largest world.allocation.high_mem_subsetSums highHalf)
+
+theorem ownershipMajorityPayoff_lower_bound
+    (pairsByOwner : List Nat) (world : HiddenOwnershipWorld pairsByOwner) :
+    guaranteedHalfSplitBirds pairsByOwner ≤
+      ownershipMajorityPayoff pairsByOwner world
+        (canonicalHalfSplitActions (sumNats pairsByOwner)) := by
+  have deviation := world.allocation.valid_plus_deviation
+  have equalDeviation := world.deficit_eq_excess
+  have bounded := world.deficit_le_largestMinority
+  have minorityHalf := largestMinority_le_half pairsByOwner
+  simp only [ownershipMajorityPayoff, beq_self_eq_true, if_true,
+    guaranteedHalfSplitBirds]
+  omega
+
+theorem exists_worstHiddenOwnershipWorld (pairsByOwner : List Nat) :
+    ∃ world : HiddenOwnershipWorld pairsByOwner,
+      ownershipMajorityPayoff pairsByOwner world
+          (canonicalHalfSplitActions (sumNats pairsByOwner)) =
+        guaranteedHalfSplitBirds pairsByOwner := by
+  obtain ⟨selection, selected⟩ := selection_exists_of_mem_subsetSums
+    (largestMinority_mem pairsByOwner)
+  have totals := selection.selected_add_unselected
+  have minorityHalf := largestMinority_le_half pairsByOwner
+  have fits : largestMinority pairsByOwner ≤ selection.unselectedPairs := by
+    omega
+  let allocation :=
+    allocationFromSelection selection (largestMinority pairsByOwner)
+  have specification := allocationFromSelection_spec selection
+    (largestMinority pairsByOwner) fits
+  refine ⟨{ allocation := allocation, halfAbove := ?_ }, ?_⟩
+  · dsimp only [allocation]
+    rw [specification.1]
+    omega
+  · have deviation := allocation.valid_plus_deviation
+    have deficit := specification.2.1
+    have excess := specification.2.2
+    simp only [ownershipMajorityPayoff, beq_self_eq_true, if_true,
+      guaranteedHalfSplitBirds]
+    dsimp only [allocation] at deviation ⊢
+    omega
+
 /-- An admissible uncertainty world for Koppel's argument is a cut made only
 between whole owner blocks, with the smaller side containing at most half of
 all pairs.  The Mishnah's `ha-merubeh kasher` rule assigns the complementary
@@ -241,6 +775,35 @@ def cutServiceAboveBirds (services : BlockService × BlockService) : Nat :=
 
 def cutServiceValidBirds (services : BlockService × BlockService) : Nat :=
   services.1.validBirds + services.2.validBirds
+
+/-- The physical pair-by-pair outcome induced by a hidden whole-owner cut. -/
+def cutIndividualServices (pairsByOwner : List Nat)
+    (world : MajorityWorld pairsByOwner) : List PairService :=
+  (cutBlockServices pairsByOwner world).1.individualPairs ++
+  (cutBlockServices pairsByOwner world).2.individualPairs
+
+def HalfSplitLegal (pairsByOwner : List Nat)
+    (actions : List PriestAction) : Prop :=
+  actions = canonicalHalfSplitActions (sumNats pairsByOwner) ∧
+  actions.length = 2 * sumNats pairsByOwner ∧
+  countAboveActions actions = sumNats pairsByOwner ∧
+  ActionsLocallyValid actions
+
+theorem canonicalHalfSplitLegal (pairsByOwner : List Nat) :
+    HalfSplitLegal pairsByOwner
+      (canonicalHalfSplitActions (sumNats pairsByOwner)) := by
+  refine ⟨rfl, canonicalHalfSplitActions_length _,
+    canonicalHalfSplitActions_above _, canonicalHalfSplitActions_locallyValid _⟩
+
+/-- Unlike `majorityPayoff`, this evaluator does not contain Koppel's formula.
+It counts validity across the individual pair services produced by the fixed
+action list.  The equality check makes noncanonical action lists score zero;
+all legal strategies are definitionally the fixed, pre-world list. -/
+def operationalMajorityPayoff (pairsByOwner : List Nat)
+    (world : MajorityWorld pairsByOwner) (actions : List PriestAction) : Nat :=
+  if actions == canonicalHalfSplitActions (sumNats pairsByOwner) then
+    individualValidBirds (cutIndividualServices pairsByOwner world)
+  else 0
 
 theorem majorityWorld_twice_minority_le_total
     {pairsByOwner : List Nat} (world : MajorityWorld pairsByOwner) :
@@ -294,11 +857,45 @@ theorem cutBlockServices_realize_majorityPayoff
     simp only [majorityPayoff]
     omega
 
+theorem cutIndividualServices_realize_majorityPayoff
+    (pairsByOwner : List Nat) (world : MajorityWorld pairsByOwner) :
+    individualPairCount (cutIndividualServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    individualAboveBirds (cutIndividualServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    individualValidBirds (cutIndividualServices pairsByOwner world) =
+        majorityPayoff pairsByOwner world () := by
+  obtain ⟨pairCount, aboveCount, validCount⟩ :=
+    cutBlockServices_realize_majorityPayoff pairsByOwner world
+  constructor
+  · simp only [cutIndividualServices, individualPairCount, List.length_append]
+    change individualPairCount
+        (cutBlockServices pairsByOwner world).1.individualPairs +
+      individualPairCount
+        (cutBlockServices pairsByOwner world).2.individualPairs = _
+    rw [individualPairs_pairCount, individualPairs_pairCount]
+    simpa [cutServicePairCount] using pairCount
+  constructor
+  · simp only [cutIndividualServices, individualAboveBirds_append]
+    rw [individualPairs_aboveBirds, individualPairs_aboveBirds]
+    simpa [cutServiceAboveBirds] using aboveCount
+  · simp only [cutIndividualServices, individualValidBirds_append]
+    rw [individualPairs_validBirds, individualPairs_validBirds]
+    simpa [cutServiceValidBirds] using validCount
+
+theorem operationalMajorityPayoff_eq_formula
+    (pairsByOwner : List Nat) (world : MajorityWorld pairsByOwner)
+    (actions : List PriestAction) (legal : HalfSplitLegal pairsByOwner actions) :
+    operationalMajorityPayoff pairsByOwner world actions =
+      majorityPayoff pairsByOwner world () := by
+  simp only [operationalMajorityPayoff, legal.1, beq_self_eq_true, if_true]
+  exact (cutIndividualServices_realize_majorityPayoff pairsByOwner world).2.2
+
 def majorityProblem (pairsByOwner : List Nat) :
-    UncertaintyProblem (MajorityWorld pairsByOwner) Unit where
+    UncertaintyProblem (HiddenOwnershipWorld pairsByOwner) (List PriestAction) where
   admissible _ := True
-  legal _ := True
-  payoff := majorityPayoff pairsByOwner
+  legal := HalfSplitLegal pairsByOwner
+  payoff := ownershipMajorityPayoff pairsByOwner
 
 def largestMinorityWorld (pairsByOwner : List Nat) :
     MajorityWorld pairsByOwner where
@@ -310,14 +907,15 @@ theorem majority_has_optimal_guarantee (pairsByOwner : List Nat) :
     (majorityProblem pairsByOwner).HasOptimalGuarantee
       (guaranteedHalfSplitBirds pairsByOwner) := by
   constructor
-  · refine ⟨(), True.intro, ?_⟩
+  · refine ⟨canonicalHalfSplitActions (sumNats pairsByOwner),
+      canonicalHalfSplitLegal pairsByOwner, ?_⟩
     intro world _
-    have bounded := minority_le_largest world.wholeOwnerCut world.atMostHalf
-    simp only [majorityProblem, majorityPayoff, guaranteedHalfSplitBirds]
-    omega
-  · intro action _
-    refine ⟨largestMinorityWorld pairsByOwner, True.intro, ?_⟩
-    cases action
+    exact ownershipMajorityPayoff_lower_bound pairsByOwner world
+  · intro actions legal
+    obtain ⟨world, worst⟩ := exists_worstHiddenOwnershipWorld pairsByOwner
+    refine ⟨world, True.intro, ?_⟩
+    simp only [majorityProblem]
+    rw [legal.1, worst]
     exact Nat.le_refl _
 
 def specifiedOppositesHalfSplitGuarantee (_pairsEach : Nat) : Nat := 0
