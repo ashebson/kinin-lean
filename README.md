@@ -1,16 +1,23 @@
 # Kinnim in Lean
 
-This project begins a formalization of *Seder Kinnim* with Mishnah Kinnim 1:1,
-the first substantive passage indexed by the linked volume (page 14 of the
-scan).
+An executable Lean 4 formalization of all sixteen units of Mishnah Kinnim in
+the **4 + 6 + 6** division used by Moshe Koppel's *Seder Kinnim*.
 
-`Kinin.lean` models the two species, the two offering designations, and the two
-altar levels. It checks the four stated rules and proves that using the other
-level is always invalid. It also derives the symmetry behind the four cases:
-changing either species or offering reverses the required level, while changing
-both preserves it.
+`Kinin.lean` includes reusable definitions for:
 
-Check the formalization with:
+- bird species, offering designation, owners, pairs, and liabilities;
+- altar levels, priestly actions, local validity, and possible worlds;
+- permutations and maximal guaranteed counts under hidden information;
+- consulted mixtures and ownership blocks;
+- flights and repeated round-trip loss through groups;
+- Koppel's generalized largest-minority / smallest-majority subset-sum solver;
+- componentwise replacement shortfalls and separately represented opinions.
+
+Every unit has a theorem named `mishnah_<chapter>_<unit>`. The original
+`mishnah_1_1` theorem and its symmetry lemmas are preserved. See
+[`SOURCES.md`](SOURCES.md) for the source crosswalk and assumptions.
+
+Build with Lean 4.32.1:
 
 ```sh
 lake build
