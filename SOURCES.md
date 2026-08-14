@@ -52,7 +52,12 @@ The theorem names use the Koppel column.
 5. Chapter 3:2 follows Koppel/Reiss: invalid birds equal twice the largest
    subset of whole owner-blocks whose pair count is at most half the total;
    valid birds are twice the complementary smallest majority. `subsetSums`
-   computes the examples.
+   computes the examples.  `majority_has_optimal_guarantee` proves that this
+   is the exact maximin value: every admissible whole-owner cut attains at
+   least the formula, while the largest-minority cut witnesses the matching
+   upper bound.  The Mishnah's rule assigning the complementary majority is
+   the semantic bridge encoded by `majorityPayoff`; deriving that bridge from
+   individual bird services remains separate work.
 6. Chapter 3:6 uses the componentwise maximum of possible shortfall
    inventories. The shortfall scenario lists are interpretive premises.
    Majority and Ben Azzai totals remain separate.
