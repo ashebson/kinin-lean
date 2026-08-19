@@ -68,8 +68,16 @@ observations or lists of atomic replacement liabilities. Lean does not
 independently establish that these are the uniquely correct readings of the
 Hebrew source.
 
-Build with Lean 4.32.1:
+Build with Lean 4.32.2:
 
 ```sh
 lake build
 ```
+
+## Palomar submission
+
+`Challenge.lean` gives a short, project-independent statement of the exact
+Kinnim 3:2 whole-owner-cut guarantee. `Solution.lean` proves it;
+`comparator.json` selects the advertised declaration and its supporting
+definitions; and `formalization.yaml` records provenance, scope, automation,
+review status, and known fidelity boundaries for the Palomar Registry.
