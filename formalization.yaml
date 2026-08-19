@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mathlib-initiative/formalization.yaml/main/schema/formalization.schema.json
+version: "v0.4"
+
+project:
+  name: "Kinnim in Lean"
+  description: >-
+    A Lean 4 formalization of all sixteen units of Mishnah Kinnim, with a
+    machine-checked exact optimization theorem for the Koppel--Reiss reading
+    of Kinnim 3:2. For any list of pair counts grouped by owner, the theorem
+    identifies the minimum valid-bird payoff over all admissible whole-owner
+    cuts as twice the complement of the largest attainable subset sum not
+    exceeding half the total. The substantive development also constructs a
+    fixed priestly strategy, individual physical ownership worlds, a matching
+    worst world, executable subset-sum algorithms, flight recurrences, and
+    replacement-inventory covers.
+  authors:
+    - "Aryeh Shebson"
+  license: "MIT"
+  responsible_maintainers:
+    - "Aryeh Shebson"
+
+classification:
+  arxiv: ["math.CO"]
+  msc2020: ["05A17", "90C27"]
+
+sources:
+  - title: "Seder Kinnim: A Mathematical Commentary on Tractate Kinnim"
+    authors:
+      - "Moshe Koppel"
+    type: "book"
+    location: "https://u.cs.biu.ac.il/~koppel/JewishStuff.html"
+    relationship: "formalizes"
+    note: >-
+      The repository follows Koppel's 4 + 6 + 6 division and formalizes his
+      generalized smallest-majority interpretation of Kinnim 3:2.
+    license: "unknown"
+    author_endorsement: "no-response"
+  - title: "A Mathematical Proof of Kinnim 3:2"
+    authors:
+      - "Philip Reiss"
+    id: "doi:10.2307/40914641"
+    type: "paper"
+    location: "https://doi.org/10.2307/40914641"
+    relationship: "formalizes"
+    note: >-
+      Reiss gives a published proof of the same largest-minority /
+      smallest-majority result and credits Koppel's equivalent algebraic
+      argument.
+    license: "unknown"
+    author_endorsement: "not-contacted"
+
+related_formalizations: []
+
+status:
+  scope: >-
+    The repository represents every unit of Mishnah Kinnim and proves the
+    Kinnim 3:2 optimization result at substantially greater depth than the
+    other units. The Comparator challenge records the exact whole-owner-cut
+    theorem. The larger development additionally proves a fixed operational
+    half-split strategy over individual bird assignments. Several other units
+    begin from documented interpretive rules encoded as definitions; Lean
+    proves their consequences but does not establish that those rules are the
+    uniquely correct readings of the Hebrew source. This is a formal model,
+    not a ruling for practice.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms: []
+  main_results:
+    - "PalomarKinnim.exactCutGuarantee"
+    - "Kinnim.mishnah_3_2"
+    - "Kinnim.generalized_smallest_majority_no_better"
+
+automation:
+  methods:
+    - method: "agent"
+      models: []
+      framework: "OpenAI Codex and ChatGPT"
+      tool_setup: >-
+        AI agents drafted and iteratively strengthened the Lean development;
+        Lean's kernel and repeated lake builds checked every committed proof.
+      cost:
+        wall_time: "several interactive sessions"
+        spend_usd: "subscription-based; not tracked"
+        hardware: "local machine and hosted agents"
+      prompting_notes: >-
+        The human specified the corpus and requested the full tractate. Agents
+        gathered source mappings, designed the model, proved the results, and
+        responded to repeated requests to replace encoded conclusions with
+        operational semantics and adversarial optimality proofs.
+  spend_usd: "subscription-based; not tracked"
+  notes: >-
+    Human-directed, AI-assisted formalization. Coherent milestones were built,
+    reviewed for sorry/custom axioms, and merged through GitHub pull requests.
+
+fidelity:
+  divergences: >-
+    The compared theorem formalizes the whole-owner-cut combinatorial reduction
+    used by Koppel and Reiss. It does not itself state the ritual vocabulary.
+    The substantive repository connects the formula to individual-bird
+    service semantics. Global temporal interleaving is omitted because the
+    model observes owner, level, and quota rather than service order. Other
+    known textual-to-model boundaries are enumerated in SOURCES.md.
+
+review:
+  status: "self-assessed"
+  reviewers: []
+  notes: >-
+    The author and AI agents checked statement/source alignment, compiled the
+    full project repeatedly, searched for sorry/admit/custom axioms, and
+    strengthened the central proof from aggregate arithmetic to physical
+    ownership worlds. Moshe Koppel was sent a source archive for interpretive
+    review; no response had been incorporated at submission time.
+
+alignment:
+  namespace: "PalomarKinnim"
+  statements:
+    - source: "Mishnah Kinnim 3:2; Koppel, Seder Kinnim; Reiss (2000), pp. 58--75"
+      lean: "PalomarKinnim.exactCutGuarantee"
+      module: "Solution"
+      status: "proved"
+      note: >-
+        States that twice the complementary largest attainable minority is a
+        lower bound for every admissible whole-owner cut and is attained by
+        one such cut, hence is the exact minimum payoff.
+
+acknowledgements: >-
+  Lean 4, the Lean community, Mechon Mamre and Sefaria for public source text,
+  Moshe Koppel and Philip Reiss for the mathematical interpretation, and
+  OpenAI's Codex and ChatGPT agents for implementation assistance.

@@ -1,6 +1,12 @@
 name = "Kinin"
 version = "0.1.0"
-defaultTargets = ["Kinin"]
+defaultTargets = ["Kinin", "Challenge", "Solution"]
 
 [[lean_lib]]
 name = "Kinin"
+
+[[lean_lib]]
+name = "Challenge"
+
+[[lean_lib]]
+name = "Solution"
