@@ -57,12 +57,15 @@ The theorem names use the Koppel column.
    contains one level entry for every individual bird of every owner and
    globally requires exactly half above. `physicalMajorityPayoff` counts valid
    birds directly from those lists and contains no subset-sum answer.
-   `ownerLevelsValid_order_irrelevant` proves order invariance, and
+   `PhysicalOwnershipWorld.compatibleWithCanonicalPlan` proves that every
+   flattened assignment is a permutation of the fixed action levels,
+   `ownerLevelsValid_order_irrelevant` proves owner-level order invariance, and
    `OwnerBirdAssignment.valid_eq_compressed` proves that reducing each owner
    to its above count preserves validity. Deficit/excess balance then proves
    every physical world attains at least twice the complementary smallest
    majority. `assignmentFromAllocation` realizes the matching largest-subset
-   worst world with individual bird levels, proving exact maximin optimality.
+   worst world with individual bird levels, proving that this value is the
+   exact minimum over all possible physical apportionments.
    Global interleaving of different owners' bird identities is omitted because
    the service semantics observes owner, level, and quota rather than temporal
    position; this is the remaining representation choice.

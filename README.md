@@ -34,24 +34,27 @@ Every unit has a theorem named `mishnah_<chapter>_<unit>`. The original
 
 ## Proof status
 
-The chapter 3 one-level result and Koppel/Reiss subset-sum result are connected
-to `UncertaintyProblem.HasOptimalGuarantee`.  Consequently their theorems now
-contain both parts of a maximin proof: an attaining strategy and an admissible
-counter-world against every legal strategy.  In particular,
-`generalized_smallest_majority_no_better` rules out every larger guarantee.
-The chapter 3:2 strategy is the concrete, world-independent list
+The chapter 3 one-level result is connected to
+`UncertaintyProblem.HasOptimalGuarantee`. The Koppel/Reiss result is stated in
+the form actually proved by Reiss: an exact minimum over all possible
+owner-by-owner apportionments after the priest has already performed half the
+birds each way. In particular, `generalized_smallest_majority_no_better`
+rules out every larger universal lower bound. The chapter 3:2 action is the
+concrete, world-independent list
 `canonicalHalfSplitActions`: half of the numbered unidentified birds are
 offered as burnts above and half as sins below. Lean proves its length, split,
 and local validity before quantifying over hidden ownership worlds. Each world
 contains an individual level assignment for every physical bird of every
 owner. Validity is computed directly from those lists and the closed-pair
-quota. `ownerLevelsValid_order_irrelevant` proves that reordering physical
+quota. `PhysicalOwnershipWorld.compatibleWithCanonicalPlan` proves that every
+world's flattened individual-bird levels are a permutation of the fixed
+action list. `ownerLevelsValid_order_irrelevant` proves that reordering physical
 birds cannot affect validity when the number above is unchanged, while
 `OwnerBirdAssignment.valid_eq_compressed` proves that compression to per-owner
-above counts is lossless. The operational payoff contains no majority formula.
-The formula is a theorem: every physical world achieves the
-smallest-majority bound, while a concrete physical world constructed from the
-largest subset sum attains it.
+above counts is lossless. The physical valid-bird count contains no majority
+formula. The formula is a theorem: every compatible physical apportionment
+achieves the smallest-majority bound, while a concrete apportionment
+constructed from the largest subset sum attains it exactly.
 
 Chapter 2 now separates observed consequences from their remedial rule and
 derives the 1-through-7 recurrence from endpoint/interior path exposures.  In
@@ -60,10 +63,10 @@ liabilities, and `coverShortfalls_minimal` proves that their componentwise
 maximum is both sufficient and least.
 
 The remaining textual-to-model boundary is explicit: chapter 3:2 represents a
-physical permutation by each owner's complete list of individual service
-levels and treats global interleaving as operationally irrelevant. The latter
-is supported by the proved owner-level order-invariance and lossless-
-compression theorems. Other chapters still assign textual cases to flight
+physical apportionment by each owner's complete list of individual action
+levels. Compatibility with the global fixed plan is proved by permutation,
+and owner-level order-invariance and lossless compression show that temporal
+interleaving carries no additional payoff information. Other chapters still assign textual cases to flight
 observations or lists of atomic replacement liabilities. Lean does not
 independently establish that these are the uniquely correct readings of the
 Hebrew source.
@@ -76,10 +79,10 @@ lake build
 
 ## Palomar submission
 
-`Challenge.lean` gives a project-independent operational statement of the
-exact Kinnim 3:2 maximin theorem: a fixed physical plan, hidden whole-owner
-worlds, individual pair services, direct valid-bird counting, and a matching
-worst world. `Solution.lean` proves it;
+`Challenge.lean` states the exact Kinnim 3:2 physical-apportionment theorem:
+every owner-by-owner assignment is compatible with the fixed action list,
+every such assignment meets the smallest-majority bound, and a concrete one
+attains it. `Solution.lean` proves it;
 `comparator.json` selects the advertised declaration and its supporting
 definitions; and `formalization.yaml` records provenance, scope, automation,
 review status, and known fidelity boundaries for the Palomar Registry.

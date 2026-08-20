@@ -5,15 +5,17 @@ project:
   name: "Kinnim in Lean"
   description: >-
     A Lean 4 formalization of all sixteen units of Mishnah Kinnim, with a
-    machine-checked operational optimization theorem for the Koppel--Reiss
-    reading of Kinnim 3:2. For any list of pair counts grouped by owner, one
-    fixed half-above/half-below plan is legal before the hidden whole-owner
-    world is known. Every world is expanded into individual pair services and
-    scored by counting valid birds from their one-below/one-above quota. The
-    theorem proves that the exact maximin payoff is twice the complement of
+    machine-checked physical optimization theorem for the Koppel--Reiss
+    reading of Kinnim 3:2. For any list of pair counts grouped by owner, the
+    priest has already acted on exactly half of the mixed birds above and half
+    below. A physical world records one action level for every individual bird
+    of every owner. Lean proves that every such world is compatible, by
+    permutation, with the fixed half-split action list. Counting valid birds
+    directly from each owner's closed-pair quota, the theorem proves that the
+    exact minimum over all physical apportionments is twice the complement of
     the largest attainable subset sum not exceeding half the total, and
-    constructs a matching worst world. The repository also covers all sixteen
-    units, flight recurrences, and replacement-inventory covers.
+    constructs an apportionment attaining it. The repository also covers all
+    sixteen units, flight recurrences, and replacement-inventory covers.
   authors:
     - "Aryeh Shebson"
   license: "MIT"
@@ -56,10 +58,10 @@ status:
   scope: >-
     The repository represents every unit of Mishnah Kinnim and proves the
     Kinnim 3:2 optimization result at substantially greater depth than the
-    other units. The Comparator challenge records the integrated operational
-    theorem: fixed plan legality, individual-pair realization, direct payoff,
-    and exact maximin optimality. The larger development additionally proves
-    the result over complete per-owner physical bird assignments. Several
+    other units. The Comparator challenge records the direct physical theorem:
+    compatibility of complete per-owner individual-bird assignments with the
+    fixed action list, a universal smallest-majority lower bound, and a
+    concrete assignment attaining it. Several
     other units begin from documented interpretive rules encoded as definitions; Lean
     proves their consequences but does not establish that those rules are the
     uniquely correct readings of the Hebrew source. This is a formal model,
@@ -68,7 +70,7 @@ status:
   sorry_in_definitions: 0
   axioms: []
   main_results:
-    - "PalomarKinnim.operationalKinnim32"
+    - "PalomarKinnim.physicalApportionmentExactMinimum"
     - "Kinnim.mishnah_3_2"
     - "Kinnim.generalized_smallest_majority_no_better"
 
@@ -96,11 +98,13 @@ automation:
 
 fidelity:
   divergences: >-
-    The compared theorem formalizes the whole-owner-cut reduction used by
-    Koppel and Reiss together with a fixed half-split plan and individual-pair
-    service semantics. It names levels and pair validity rather than the full
-    ritual vocabulary. Global temporal interleaving is omitted because the
-    model observes owner, level, and quota rather than service order. Other
+    The compared theorem formalizes Reiss's optimization domain directly:
+    complete owner-by-owner assignments of individual birds to the two action
+    levels, with exactly half above globally. It names levels and closed-pair
+    quotas rather than the full ritual vocabulary. Global temporal
+    interleaving is quotiented by permutation; Lean proves compatibility with
+    the concrete fixed action list and proves that owner-level reordering
+    cannot affect the valid-bird count. Other
     known textual-to-model boundaries are enumerated in SOURCES.md.
 
 review:
@@ -117,14 +121,15 @@ alignment:
   namespace: "PalomarKinnim"
   statements:
     - source: "Mishnah Kinnim 3:2; Koppel, Seder Kinnim; Reiss (2000), pp. 58--75"
-      lean: "PalomarKinnim.operationalKinnim32"
+      lean: "PalomarKinnim.physicalApportionmentExactMinimum"
       module: "Solution"
       status: "proved"
       note: >-
-        States that the world-independent half-split plan is legal, realizes
-        every whole-owner world as individual pair services with the required
-        physical counts, and has exact maximin payoff twice the complementary
-        largest attainable minority, attained by an explicit worst world.
+        States that every complete per-owner individual-bird apportionment is
+        compatible by permutation with the fixed half-split action list, that
+        its direct valid-bird count is at least twice the complementary largest
+        attainable minority, and that an explicit physical apportionment
+        attains this bound exactly.
 
 acknowledgements: >-
   Lean 4, the Lean community, Mechon Mamre and Sefaria for public source text,
