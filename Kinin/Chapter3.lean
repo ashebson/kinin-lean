@@ -20,8 +20,17 @@ theorem mishnah_3_1 :
 
 theorem mishnah_3_2 :
     (∀ pairsByOwner,
-      (majorityProblem pairsByOwner).HasOptimalGuarantee
-        (guaranteedHalfSplitBirds pairsByOwner)) ∧
+      (∀ world : PhysicalOwnershipWorld pairsByOwner,
+        world.assignment.levels.Perm
+            (actionLevels
+              (canonicalHalfSplitActions (sumNats pairsByOwner))) ∧
+        guaranteedHalfSplitBirds pairsByOwner ≤ world.assignment.validBirds) ∧
+      (∃ worst : PhysicalOwnershipWorld pairsByOwner,
+        worst.assignment.levels.Perm
+            (actionLevels
+              (canonicalHalfSplitActions (sumNats pairsByOwner))) ∧
+        worst.assignment.validBirds =
+          guaranteedHalfSplitBirds pairsByOwner)) ∧
     (∀ pairsByOwner,
       HalfSplitLegal pairsByOwner
         (canonicalHalfSplitActions (sumNats pairsByOwner))) ∧
@@ -44,7 +53,16 @@ theorem mishnah_3_2 :
     largestMinority [4, 6, 7] = 7 ∧
     guaranteedHalfSplitBirds [4, 6, 7] = 20 := by
   constructor
-  · exact majority_has_optimal_guarantee
+  · intro pairsByOwner
+    constructor
+    · intro world
+      refine ⟨world.compatibleWithCanonicalPlan, ?_⟩
+      simpa [physicalMajorityPayoff] using
+        physicalMajorityPayoff_lower_bound pairsByOwner world
+    · obtain ⟨worst, exactWorst⟩ :=
+        exists_worstPhysicalOwnershipWorld pairsByOwner
+      refine ⟨worst, worst.compatibleWithCanonicalPlan, ?_⟩
+      simpa [physicalMajorityPayoff] using exactWorst
   constructor
   · exact canonicalHalfSplitLegal
   constructor
@@ -54,9 +72,25 @@ theorem mishnah_3_2 :
   · decide
 
 theorem generalized_smallest_majority (pairsByOwner : List Nat) :
-    (majorityProblem pairsByOwner).HasOptimalGuarantee
-      (guaranteedHalfSplitBirds pairsByOwner) :=
-  majority_has_optimal_guarantee pairsByOwner
+    (∀ world : PhysicalOwnershipWorld pairsByOwner,
+      world.assignment.levels.Perm
+          (actionLevels
+            (canonicalHalfSplitActions (sumNats pairsByOwner))) ∧
+      guaranteedHalfSplitBirds pairsByOwner ≤ world.assignment.validBirds) ∧
+    (∃ worst : PhysicalOwnershipWorld pairsByOwner,
+      worst.assignment.levels.Perm
+          (actionLevels
+            (canonicalHalfSplitActions (sumNats pairsByOwner))) ∧
+      worst.assignment.validBirds = guaranteedHalfSplitBirds pairsByOwner) := by
+  constructor
+  · intro world
+    refine ⟨world.compatibleWithCanonicalPlan, ?_⟩
+    simpa [physicalMajorityPayoff] using
+      physicalMajorityPayoff_lower_bound pairsByOwner world
+  · obtain ⟨worst, exactWorst⟩ :=
+      exists_worstPhysicalOwnershipWorld pairsByOwner
+    refine ⟨worst, worst.compatibleWithCanonicalPlan, ?_⟩
+    simpa [physicalMajorityPayoff] using exactWorst
 
 theorem generalized_smallest_majority_pair_service
     (pairsByOwner : List Nat) (world : MajorityWorld pairsByOwner) :
@@ -103,10 +137,14 @@ theorem generalized_owner_order_irrelevant
 theorem generalized_smallest_majority_no_better
     (pairsByOwner : List Nat) {larger : Nat}
     (h : guaranteedHalfSplitBirds pairsByOwner < larger) :
-    ¬ ∃ action,
-      (majorityProblem pairsByOwner).Guarantees action larger := by
-  exact UncertaintyProblem.no_strategy_guarantees_more
-    (majority_has_optimal_guarantee pairsByOwner) h
+    ¬ ∀ world : PhysicalOwnershipWorld pairsByOwner,
+      larger ≤ world.assignment.validBirds := by
+  intro allegedLowerBound
+  obtain ⟨worst, exactWorst⟩ :=
+    exists_worstPhysicalOwnershipWorld pairsByOwner
+  have contradicted := allegedLowerBound worst
+  simp only [physicalMajorityPayoff, beq_self_eq_true, if_true] at exactWorst
+  omega
 
 theorem mishnah_3_3 :
     allAtOneLevelValidBirds [1, 1] = 2 ∧

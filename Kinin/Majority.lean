@@ -740,10 +740,35 @@ inductive OwnerBirdAssignment : List Nat → Type where
   | cons {pairs rest} (levels : List Level) (birdCount : levels.length = 2 * pairs)
       (tail : OwnerBirdAssignment rest) : OwnerBirdAssignment (pairs :: rest)
 
+/-- Forget the owner-block boundaries while retaining the action level of
+every individual bird. -/
+def OwnerBirdAssignment.levels :
+    {pairsByOwner : List Nat} → OwnerBirdAssignment pairsByOwner → List Level
+  | _, .nil => []
+  | _, .cons levels _ tail => levels ++ tail.levels
+
+theorem OwnerBirdAssignment.levels_length
+    {pairsByOwner : List Nat} (assignment : OwnerBirdAssignment pairsByOwner) :
+    assignment.levels.length = 2 * sumNats pairsByOwner := by
+  induction assignment with
+  | nil => rfl
+  | @cons pairs rest levels birdCount tail ih =>
+      simp only [OwnerBirdAssignment.levels, List.length_append, sumNats]
+      omega
+
 def OwnerBirdAssignment.aboveBirds :
     {pairsByOwner : List Nat} → OwnerBirdAssignment pairsByOwner → Nat
   | _, .nil => 0
   | _, .cons levels _ tail => countLevel .above levels + tail.aboveBirds
+
+theorem OwnerBirdAssignment.levels_aboveBirds
+    {pairsByOwner : List Nat} (assignment : OwnerBirdAssignment pairsByOwner) :
+    countLevel .above assignment.levels = assignment.aboveBirds := by
+  induction assignment with
+  | nil => rfl
+  | cons levels birdCount tail ih =>
+      simp [OwnerBirdAssignment.levels, OwnerBirdAssignment.aboveBirds,
+        countLevel_append, ih]
 
 def OwnerBirdAssignment.validBirds :
     {pairsByOwner : List Nat} → OwnerBirdAssignment pairsByOwner → Nat
@@ -854,6 +879,63 @@ actions. -/
 structure PhysicalOwnershipWorld (pairsByOwner : List Nat) where
   assignment : OwnerBirdAssignment pairsByOwner
   halfAbove : assignment.aboveBirds = sumNats pairsByOwner
+
+/-- The level sequence of the fixed action list, before the still-hidden
+individual birds are assigned to its positions. -/
+def canonicalHalfSplitLevels (pairs : Nat) : List Level :=
+  List.replicate pairs .above ++ List.replicate pairs .below
+
+/-- Read only the levels from a concrete priestly action list. -/
+def actionLevels (actions : List PriestAction) : List Level :=
+  actions.map (fun action => action.level)
+
+theorem actionLevels_canonicalHalfSplitActions (pairs : Nat) :
+    actionLevels (canonicalHalfSplitActions pairs) =
+      canonicalHalfSplitLevels pairs := by
+  simp only [actionLevels, canonicalHalfSplitActions, List.map_append,
+    actionAtLevel]
+  rw [List.map_map, List.map_map]
+  change
+    (List.range pairs).map (fun _ => Level.above) ++
+        (List.range pairs).map (fun _ => Level.below) =
+      canonicalHalfSplitLevels pairs
+  rw [List.map_const', List.map_const']
+  simp [canonicalHalfSplitLevels]
+
+private theorem countLevel_eq_count (wanted : Level) (levels : List Level) :
+    countLevel wanted levels = levels.count wanted := by
+  induction levels with
+  | nil => rfl
+  | cons level levels ih =>
+      cases wanted <;> cases level <;>
+        simp [countLevel, ih, Nat.add_comm]
+
+/-- Every physical ownership world is compatible with the fixed plan: after
+owner labels are forgotten, its individual-bird levels are a permutation of
+the levels in the concrete half-above/half-below action list. -/
+theorem PhysicalOwnershipWorld.compatibleWithCanonicalPlan
+    {pairsByOwner : List Nat} (world : PhysicalOwnershipWorld pairsByOwner) :
+    world.assignment.levels.Perm
+      (actionLevels (canonicalHalfSplitActions (sumNats pairsByOwner))) := by
+  rw [actionLevels_canonicalHalfSplitActions]
+  apply List.perm_iff_count.mpr
+  intro level
+  cases level with
+  | above =>
+      rw [← countLevel_eq_count]
+      rw [world.assignment.levels_aboveBirds, world.halfAbove]
+      simp [canonicalHalfSplitLevels, List.count_replicate]
+  | below =>
+      rw [← countLevel_eq_count]
+      have totalLevels := world.assignment.levels_length
+      have splitLevels := countLevel_below_add_above world.assignment.levels
+      have aboveLevels := world.assignment.levels_aboveBirds
+      rw [world.halfAbove] at aboveLevels
+      have belowLevels :
+          countLevel .below world.assignment.levels = sumNats pairsByOwner := by
+        omega
+      rw [belowLevels]
+      simp [canonicalHalfSplitLevels, List.count_replicate]
 
 /-- A hidden ownership world assigns the fixed above-half positions among the
 owner blocks. Every owner has at most twice its pair count in birds, and the
@@ -1138,33 +1220,6 @@ theorem operationalMajorityPayoff_eq_formula
       majorityPayoff pairsByOwner world () := by
   simp only [operationalMajorityPayoff, legal.1, beq_self_eq_true, if_true]
   exact (cutIndividualServices_realize_majorityPayoff pairsByOwner world).2.2
-
-def majorityProblem (pairsByOwner : List Nat) :
-    UncertaintyProblem (PhysicalOwnershipWorld pairsByOwner) (List PriestAction) where
-  admissible _ := True
-  legal := HalfSplitLegal pairsByOwner
-  payoff := physicalMajorityPayoff pairsByOwner
-
-def largestMinorityWorld (pairsByOwner : List Nat) :
-    MajorityWorld pairsByOwner where
-  minorityPairs := largestMinority pairsByOwner
-  wholeOwnerCut := largestMinority_mem pairsByOwner
-  atMostHalf := largestMinority_le_half pairsByOwner
-
-theorem majority_has_optimal_guarantee (pairsByOwner : List Nat) :
-    (majorityProblem pairsByOwner).HasOptimalGuarantee
-      (guaranteedHalfSplitBirds pairsByOwner) := by
-  constructor
-  · refine ⟨canonicalHalfSplitActions (sumNats pairsByOwner),
-      canonicalHalfSplitLegal pairsByOwner, ?_⟩
-    intro world _
-    exact physicalMajorityPayoff_lower_bound pairsByOwner world
-  · intro actions legal
-    obtain ⟨world, worst⟩ := exists_worstPhysicalOwnershipWorld pairsByOwner
-    refine ⟨world, True.intro, ?_⟩
-    simp only [majorityProblem]
-    rw [legal.1, worst]
-    exact Nat.le_refl _
 
 def specifiedOppositesHalfSplitGuarantee (_pairsEach : Nat) : Nat := 0
 
