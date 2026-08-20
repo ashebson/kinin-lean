@@ -5,14 +5,15 @@ project:
   name: "Kinnim in Lean"
   description: >-
     A Lean 4 formalization of all sixteen units of Mishnah Kinnim, with a
-    machine-checked exact optimization theorem for the Koppel--Reiss reading
-    of Kinnim 3:2. For any list of pair counts grouped by owner, the theorem
-    identifies the minimum valid-bird payoff over all admissible whole-owner
-    cuts as twice the complement of the largest attainable subset sum not
-    exceeding half the total. The substantive development also constructs a
-    fixed priestly strategy, individual physical ownership worlds, a matching
-    worst world, executable subset-sum algorithms, flight recurrences, and
-    replacement-inventory covers.
+    machine-checked operational optimization theorem for the Koppel--Reiss
+    reading of Kinnim 3:2. For any list of pair counts grouped by owner, one
+    fixed half-above/half-below plan is legal before the hidden whole-owner
+    world is known. Every world is expanded into individual pair services and
+    scored by counting valid birds from their one-below/one-above quota. The
+    theorem proves that the exact maximin payoff is twice the complement of
+    the largest attainable subset sum not exceeding half the total, and
+    constructs a matching worst world. The repository also covers all sixteen
+    units, flight recurrences, and replacement-inventory covers.
   authors:
     - "Aryeh Shebson"
   license: "MIT"
@@ -55,10 +56,11 @@ status:
   scope: >-
     The repository represents every unit of Mishnah Kinnim and proves the
     Kinnim 3:2 optimization result at substantially greater depth than the
-    other units. The Comparator challenge records the exact whole-owner-cut
-    theorem. The larger development additionally proves a fixed operational
-    half-split strategy over individual bird assignments. Several other units
-    begin from documented interpretive rules encoded as definitions; Lean
+    other units. The Comparator challenge records the integrated operational
+    theorem: fixed plan legality, individual-pair realization, direct payoff,
+    and exact maximin optimality. The larger development additionally proves
+    the result over complete per-owner physical bird assignments. Several
+    other units begin from documented interpretive rules encoded as definitions; Lean
     proves their consequences but does not establish that those rules are the
     uniquely correct readings of the Hebrew source. This is a formal model,
     not a ruling for practice.
@@ -66,7 +68,7 @@ status:
   sorry_in_definitions: 0
   axioms: []
   main_results:
-    - "PalomarKinnim.exactCutGuarantee"
+    - "PalomarKinnim.operationalKinnim32"
     - "Kinnim.mishnah_3_2"
     - "Kinnim.generalized_smallest_majority_no_better"
 
@@ -94,10 +96,10 @@ automation:
 
 fidelity:
   divergences: >-
-    The compared theorem formalizes the whole-owner-cut combinatorial reduction
-    used by Koppel and Reiss. It does not itself state the ritual vocabulary.
-    The substantive repository connects the formula to individual-bird
-    service semantics. Global temporal interleaving is omitted because the
+    The compared theorem formalizes the whole-owner-cut reduction used by
+    Koppel and Reiss together with a fixed half-split plan and individual-pair
+    service semantics. It names levels and pair validity rather than the full
+    ritual vocabulary. Global temporal interleaving is omitted because the
     model observes owner, level, and quota rather than service order. Other
     known textual-to-model boundaries are enumerated in SOURCES.md.
 
@@ -115,13 +117,14 @@ alignment:
   namespace: "PalomarKinnim"
   statements:
     - source: "Mishnah Kinnim 3:2; Koppel, Seder Kinnim; Reiss (2000), pp. 58--75"
-      lean: "PalomarKinnim.exactCutGuarantee"
+      lean: "PalomarKinnim.operationalKinnim32"
       module: "Solution"
       status: "proved"
       note: >-
-        States that twice the complementary largest attainable minority is a
-        lower bound for every admissible whole-owner cut and is attained by
-        one such cut, hence is the exact minimum payoff.
+        States that the world-independent half-split plan is legal, realizes
+        every whole-owner world as individual pair services with the required
+        physical counts, and has exact maximin payoff twice the complementary
+        largest attainable minority, attained by an explicit worst world.
 
 acknowledgements: >-
   Lean 4, the Lean community, Mechon Mamre and Sefaria for public source text,

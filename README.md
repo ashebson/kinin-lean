@@ -76,8 +76,10 @@ lake build
 
 ## Palomar submission
 
-`Challenge.lean` gives a short, project-independent statement of the exact
-Kinnim 3:2 whole-owner-cut guarantee. `Solution.lean` proves it;
+`Challenge.lean` gives a project-independent operational statement of the
+exact Kinnim 3:2 maximin theorem: a fixed physical plan, hidden whole-owner
+worlds, individual pair services, direct valid-bird counting, and a matching
+worst world. `Solution.lean` proves it;
 `comparator.json` selects the advertised declaration and its supporting
 definitions; and `formalization.yaml` records provenance, scope, automation,
 review status, and known fidelity boundaries for the Palomar Registry.

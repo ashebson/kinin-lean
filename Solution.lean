@@ -1,10 +1,29 @@
 import Lean.Elab.Tactic.Omega
 
-/-!
-# Proved solution for the Kinnim 3:2 challenge
--/
+/-! # Proved solution: operational Kinnim 3:2 maximin theorem -/
 
 namespace PalomarKinnim
+
+inductive Level where
+  | below
+  | above
+  deriving DecidableEq, BEq, Repr
+
+inductive PairService where
+  | bothBelow
+  | split
+  | bothAbove
+  deriving DecidableEq, BEq, Repr
+
+def PairService.aboveBirds : PairService → Nat
+  | .bothBelow => 0
+  | .split => 1
+  | .bothAbove => 2
+
+def PairService.validBirds : PairService → Nat
+  | .bothBelow => 1
+  | .split => 2
+  | .bothAbove => 1
 
 def sumNats : List Nat → Nat
   | [] => 0
@@ -28,12 +47,56 @@ def largestMinority (pairsByOwner : List Nat) : Nat :=
 def guaranteedValidBirds (pairsByOwner : List Nat) : Nat :=
   2 * (sumNats pairsByOwner - largestMinority pairsByOwner)
 
-def AdmissibleCut (pairsByOwner : List Nat) (minorityPairs : Nat) : Prop :=
-  minorityPairs ∈ subsetSums pairsByOwner ∧
-    minorityPairs ≤ sumNats pairsByOwner / 2
+structure MajorityWorld (pairsByOwner : List Nat) where
+  minorityPairs : Nat
+  wholeOwnerCut : minorityPairs ∈ subsetSums pairsByOwner
+  atMostHalf : minorityPairs ≤ sumNats pairsByOwner / 2
 
-def cutPayoff (pairsByOwner : List Nat) (minorityPairs : Nat) : Nat :=
-  2 * (sumNats pairsByOwner - minorityPairs)
+def canonicalHalfSplitPlan (pairsByOwner : List Nat) : List Level :=
+  List.replicate (sumNats pairsByOwner) .above ++
+    List.replicate (sumNats pairsByOwner) .below
+
+def countAbove : List Level → Nat
+  | [] => 0
+  | level :: levels =>
+      (if level == .above then 1 else 0) + countAbove levels
+
+def PlanLegal (pairsByOwner : List Nat) (plan : List Level) : Prop :=
+  plan = canonicalHalfSplitPlan pairsByOwner ∧
+  plan.length = 2 * sumNats pairsByOwner ∧
+  countAbove plan = sumNats pairsByOwner
+
+def operationalServices (pairsByOwner : List Nat)
+    (world : MajorityWorld pairsByOwner) : List PairService :=
+  List.replicate world.minorityPairs .bothBelow ++
+  List.replicate
+      (sumNats pairsByOwner - 2 * world.minorityPairs) .split ++
+  List.replicate world.minorityPairs .bothAbove
+
+def serviceAboveBirds : List PairService → Nat
+  | [] => 0
+  | service :: services => service.aboveBirds + serviceAboveBirds services
+
+def serviceValidBirds : List PairService → Nat
+  | [] => 0
+  | service :: services => service.validBirds + serviceValidBirds services
+
+def operationalPayoff (pairsByOwner : List Nat)
+    (world : MajorityWorld pairsByOwner) (plan : List Level) : Nat :=
+  if plan = canonicalHalfSplitPlan pairsByOwner then
+    serviceValidBirds (operationalServices pairsByOwner world)
+  else 0
+
+def Guarantees (pairsByOwner : List Nat) (plan : List Level) (count : Nat) : Prop :=
+  PlanLegal pairsByOwner plan ∧
+    ∀ world : MajorityWorld pairsByOwner,
+      count ≤ operationalPayoff pairsByOwner world plan
+
+def HasOptimalGuarantee (pairsByOwner : List Nat) (count : Nat) : Prop :=
+  (∃ plan, Guarantees pairsByOwner plan count) ∧
+  (∀ plan, PlanLegal pairsByOwner plan →
+    ∃ world : MajorityWorld pairsByOwner,
+      operationalPayoff pairsByOwner world plan ≤ count)
 
 private theorem greatestAtMost_le (limit : Nat) (values : List Nat) :
     greatestAtMost limit values ≤ limit := by
@@ -110,22 +173,149 @@ private theorem largestMinority_mem (pairsByOwner : List Nat) :
     exact zero_mem_subsetSums pairsByOwner
   · exact member
 
-theorem exactCutGuarantee (pairsByOwner : List Nat) :
-    (∀ minorityPairs, AdmissibleCut pairsByOwner minorityPairs →
-      guaranteedValidBirds pairsByOwner ≤
-        cutPayoff pairsByOwner minorityPairs) ∧
-    ∃ minorityPairs, AdmissibleCut pairsByOwner minorityPairs ∧
-      cutPayoff pairsByOwner minorityPairs =
-        guaranteedValidBirds pairsByOwner := by
-  constructor
-  · intro minorityPairs admissible
-    have minorityLe :
-        minorityPairs ≤ largestMinority pairsByOwner :=
-      le_greatestAtMost_of_mem admissible.1 admissible.2
-    simp only [guaranteedValidBirds, cutPayoff]
+private theorem largestMinority_le_half (pairsByOwner : List Nat) :
+    largestMinority pairsByOwner ≤ sumNats pairsByOwner / 2 := by
+  exact greatestAtMost_le _ _
+
+private theorem minority_le_largest
+    {pairsByOwner : List Nat} (world : MajorityWorld pairsByOwner) :
+    world.minorityPairs ≤ largestMinority pairsByOwner := by
+  exact le_greatestAtMost_of_mem world.wholeOwnerCut world.atMostHalf
+
+private theorem countAbove_append (first second : List Level) :
+    countAbove (first ++ second) = countAbove first + countAbove second := by
+  induction first with
+  | nil => simp [countAbove]
+  | cons level levels ih => simp [countAbove, ih, Nat.add_assoc]
+
+private theorem countAbove_replicate_above (n : Nat) :
+    countAbove (List.replicate n .above) = n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+      change 1 + countAbove (List.replicate n .above) = n + 1
+      rw [ih]
+      omega
+
+private theorem countAbove_replicate_below (n : Nat) :
+    countAbove (List.replicate n .below) = 0 := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+      change 0 + countAbove (List.replicate n .below) = 0
+      simpa using ih
+
+private theorem canonicalPlan_legal (pairsByOwner : List Nat) :
+    PlanLegal pairsByOwner (canonicalHalfSplitPlan pairsByOwner) := by
+  refine ⟨rfl, ?_, ?_⟩
+  · simp [canonicalHalfSplitPlan]
     omega
-  · refine ⟨largestMinority pairsByOwner, ?_, rfl⟩
-    exact ⟨largestMinority_mem pairsByOwner,
-      greatestAtMost_le _ _⟩
+  · simp [canonicalHalfSplitPlan, countAbove_append,
+      countAbove_replicate_above, countAbove_replicate_below]
+
+private theorem serviceAbove_append (first second : List PairService) :
+    serviceAboveBirds (first ++ second) =
+      serviceAboveBirds first + serviceAboveBirds second := by
+  induction first with
+  | nil => simp [serviceAboveBirds]
+  | cons service services ih =>
+      simp [serviceAboveBirds, ih, Nat.add_assoc]
+
+private theorem serviceValid_append (first second : List PairService) :
+    serviceValidBirds (first ++ second) =
+      serviceValidBirds first + serviceValidBirds second := by
+  induction first with
+  | nil => simp [serviceValidBirds]
+  | cons service services ih =>
+      simp [serviceValidBirds, ih, Nat.add_assoc]
+
+private theorem serviceAbove_replicate (n : Nat) (service : PairService) :
+    serviceAboveBirds (List.replicate n service) = n * service.aboveBirds := by
+  induction n with
+  | zero => simp [serviceAboveBirds]
+  | succ n ih =>
+      simp [List.replicate_succ, serviceAboveBirds, ih, Nat.succ_mul]
+      omega
+
+private theorem serviceValid_replicate (n : Nat) (service : PairService) :
+    serviceValidBirds (List.replicate n service) = n * service.validBirds := by
+  induction n with
+  | zero => simp [serviceValidBirds]
+  | succ n ih =>
+      simp [List.replicate_succ, serviceValidBirds, ih, Nat.succ_mul]
+      omega
+
+private theorem twice_minority_le_total
+    {pairsByOwner : List Nat} (world : MajorityWorld pairsByOwner) :
+    2 * world.minorityPairs ≤ sumNats pairsByOwner := by
+  have multiplied :=
+    (Nat.le_div_iff_mul_le (by decide : 0 < 2)).1 world.atMostHalf
+  simpa [Nat.mul_comm] using multiplied
+
+private theorem operational_realization
+    (pairsByOwner : List Nat) (world : MajorityWorld pairsByOwner) :
+    (operationalServices pairsByOwner world).length =
+        sumNats pairsByOwner ∧
+    serviceAboveBirds (operationalServices pairsByOwner world) =
+        sumNats pairsByOwner ∧
+    operationalPayoff pairsByOwner world
+        (canonicalHalfSplitPlan pairsByOwner) =
+      2 * (sumNats pairsByOwner - world.minorityPairs) := by
+  have bounded := twice_minority_le_total world
+  constructor
+  · simp only [operationalServices, List.length_append, List.length_replicate]
+    omega
+  constructor
+  · simp only [operationalServices, serviceAbove_append,
+      serviceAbove_replicate, PairService.aboveBirds]
+    omega
+  · simp only [operationalPayoff, if_true,
+      operationalServices, serviceValid_append, serviceValid_replicate,
+      PairService.validBirds]
+    omega
+
+private def largestMinorityWorld (pairsByOwner : List Nat) :
+    MajorityWorld pairsByOwner where
+  minorityPairs := largestMinority pairsByOwner
+  wholeOwnerCut := largestMinority_mem pairsByOwner
+  atMostHalf := largestMinority_le_half pairsByOwner
+
+private theorem canonical_guarantees (pairsByOwner : List Nat) :
+    Guarantees pairsByOwner (canonicalHalfSplitPlan pairsByOwner)
+      (guaranteedValidBirds pairsByOwner) := by
+  constructor
+  · exact canonicalPlan_legal pairsByOwner
+  · intro world
+    rw [(operational_realization pairsByOwner world).2.2]
+    have maximal := minority_le_largest world
+    simp only [guaranteedValidBirds]
+    omega
+
+private theorem exact_optimal_guarantee (pairsByOwner : List Nat) :
+    HasOptimalGuarantee pairsByOwner (guaranteedValidBirds pairsByOwner) := by
+  constructor
+  · exact ⟨canonicalHalfSplitPlan pairsByOwner,
+      canonical_guarantees pairsByOwner⟩
+  · intro plan legal
+    let world := largestMinorityWorld pairsByOwner
+    refine ⟨world, ?_⟩
+    rw [legal.1]
+    rw [(operational_realization pairsByOwner world).2.2]
+    simp [world, guaranteedValidBirds, largestMinorityWorld]
+
+theorem operationalKinnim32 (pairsByOwner : List Nat) :
+    PlanLegal pairsByOwner (canonicalHalfSplitPlan pairsByOwner) ∧
+    (∀ world : MajorityWorld pairsByOwner,
+      (operationalServices pairsByOwner world).length =
+          sumNats pairsByOwner ∧
+      serviceAboveBirds (operationalServices pairsByOwner world) =
+          sumNats pairsByOwner ∧
+      operationalPayoff pairsByOwner world
+          (canonicalHalfSplitPlan pairsByOwner) =
+        2 * (sumNats pairsByOwner - world.minorityPairs)) ∧
+    HasOptimalGuarantee pairsByOwner (guaranteedValidBirds pairsByOwner) := by
+  exact ⟨canonicalPlan_legal pairsByOwner,
+    operational_realization pairsByOwner,
+    exact_optimal_guarantee pairsByOwner⟩
 
 end PalomarKinnim
